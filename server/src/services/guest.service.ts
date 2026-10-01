@@ -1,72 +1,116 @@
 import {
   createGuest,
   findGuestByEmail,
+  findGuestById,
+  listGuests,
+  updateGuestById as persistGuestUpdate,
 } from "../repositories/guest.repository.js";
 import type {
+  AttendanceStatus,
   CreateGuestInput,
   Guest,
   RegisterGuestBody,
+  UpdateGuestBody,
+  UpdateGuestInput,
 } from "../types/guest.types.js";
-import { ConflictError, ValidationError } from "../errors/http.error.js";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "../errors/http.error.js";
 
 // Learn: service = the supervisor. It never touches the register book (SQL)
 // and never talks HTTP. It enforces business rules: valid input, clean
 // values, no duplicate email. The controller handles HTTP; the repository
-// handles SQL; this file handles "is this registration acceptable?"
+// handles SQL; this file handles "is this request acceptable?"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const readStringField = (body: RegisterGuestBody, field: "first_name" | "last_name" | "email" | "phone"): unknown => {
-  return (body as Record<string, unknown>)[field];
+const ATTENDANCE_VALUES: AttendanceStatus[] = ["pending", "yes", "no"];
+
+// System-managed fields clients must never write. If any appear in a
+// PATCH body we reject with 400 rather than silently ignoring them,
+// so the caller learns the rule instead of thinking the write worked.
+const PROTECTED_FIELDS = [
+  "id",
+  "ticket_number",
+  "qr_token",
+  "is_sent",
+  "created_at",
+  "updated_at",
+] as const;
+
+const readField = (body: Record<string, unknown>, field: string): unknown => {
+  return body[field];
 };
 
-export const registerGuest = (body: RegisterGuestBody): Guest => {
-  // first_name: required, non-empty string.
-  const rawFirstName = readStringField(body, "first_name");
-  if (typeof rawFirstName !== "string" || rawFirstName.trim() === "") {
+// Shared validators. registerGuest and updateGuestById both use these,
+// so the rules live in ONE place and cannot drift apart.
+
+const normalizeFirstName = (raw: unknown): string => {
+  if (typeof raw !== "string" || raw.trim() === "") {
     throw new ValidationError("first_name is required");
   }
+  return raw.trim();
+};
 
-  // last_name: required, non-empty string.
-  const rawLastName = readStringField(body, "last_name");
-  if (typeof rawLastName !== "string" || rawLastName.trim() === "") {
+const normalizeLastName = (raw: unknown): string => {
+  if (typeof raw !== "string" || raw.trim() === "") {
     throw new ValidationError("last_name is required");
   }
+  return raw.trim();
+};
 
-  // email: required, trimmed + lowercased so Ada@X.com and ada@x.com
-  // are treated as the same guest. Basic format check only on purpose:
-  // a short clear regex beats a 500-character "perfect" one nobody can read.
-  const rawEmail = readStringField(body, "email");
-  if (typeof rawEmail !== "string" || rawEmail.trim() === "") {
+const normalizeEmail = (raw: unknown): string => {
+  if (typeof raw !== "string" || raw.trim() === "") {
     throw new ValidationError("email is required");
   }
-  const email = rawEmail.trim().toLowerCase();
+  const email = raw.trim().toLowerCase();
   if (!EMAIL_PATTERN.test(email)) {
     throw new ValidationError("email must be a valid email address");
   }
+  return email;
+};
 
-  // phone: optional. Missing -> null. Wrong type -> 400. Empty string -> null.
-  const rawPhone = readStringField(body, "phone");
-  let phone: string | null = null;
-  if (rawPhone !== undefined && rawPhone !== null) {
-    if (typeof rawPhone !== "string") {
-      throw new ValidationError("phone must be a string");
-    }
-    phone = rawPhone.trim() === "" ? null : rawPhone.trim();
+const normalizePhone = (raw: unknown): string | null => {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") {
+    throw new ValidationError("phone must be a string");
   }
+  return raw.trim() === "" ? null : raw.trim();
+};
 
+const normalizeAttendance = (raw: unknown): AttendanceStatus => {
+  if (typeof raw !== "string" || !ATTENDANCE_VALUES.includes(raw as AttendanceStatus)) {
+    throw new ValidationError("attendance_status must be one of: pending, yes, no");
+  }
+  return raw as AttendanceStatus;
+};
+
+// URL ids arrive as strings ("3"). Accept numeric strings and numbers,
+// reject everything else (abc, 3.5, -1, empty) with a 400.
+const parseGuestId = (rawId: unknown): number => {
+  const id = typeof rawId === "string" && rawId.trim() !== "" ? Number(rawId) : rawId;
+  if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
+    throw new ValidationError("guest id must be a positive integer");
+  }
+  return id;
+};
+
+export const registerGuest = (body: RegisterGuestBody): Guest => {
+  const record = body as Record<string, unknown>;
   const input: CreateGuestInput = {
-    first_name: (rawFirstName as string).trim(),
-    last_name: (rawLastName as string).trim(),
-    email,
-    phone,
+    first_name: normalizeFirstName(readField(record, "first_name")),
+    last_name: normalizeLastName(readField(record, "last_name")),
+    email: normalizeEmail(readField(record, "email")),
+    phone: normalizePhone(readField(record, "phone")),
   };
 
   // Friendly duplicate check for a clear 409 message.
   // The UNIQUE constraint in SQLite stays the final guard (race safety):
   // if two requests slip past this check at the same instant,
   // the database still rejects the second one.
-  if (findGuestByEmail(email)) {
+  if (findGuestByEmail(input.email)) {
     throw new ConflictError();
   }
 
@@ -74,6 +118,77 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
     return createGuest(input);
   } catch (err) {
     // Never leak raw SQLite text ("UNIQUE constraint failed...") to clients.
+    if (err instanceof Error && err.message.includes("UNIQUE")) {
+      throw new ConflictError();
+    }
+    throw err;
+  }
+};
+
+export const getGuests = (): Guest[] => {
+  return listGuests();
+};
+
+export const getGuestById = (rawId: unknown): Guest => {
+  const id = parseGuestId(rawId);
+  const guest = findGuestById(id);
+  if (!guest) {
+    throw new NotFoundError();
+  }
+  return guest;
+};
+
+export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest => {
+  const id = parseGuestId(rawId);
+  const record = body as Record<string, unknown>;
+
+  // Reject system fields loudly instead of ignoring them.
+  for (const field of PROTECTED_FIELDS) {
+    if (record[field] !== undefined) {
+      throw new ValidationError(`${field} cannot be updated`);
+    }
+  }
+
+  const existing = findGuestById(id);
+  if (!existing) {
+    throw new NotFoundError();
+  }
+
+  // PATCH = partial: only validate + include fields the client sent.
+  // Sending nothing updatable is a 400, not a silent no-op.
+  const patch: UpdateGuestInput = {};
+  if (record["first_name"] !== undefined) {
+    patch.first_name = normalizeFirstName(record["first_name"]);
+  }
+  if (record["last_name"] !== undefined) {
+    patch.last_name = normalizeLastName(record["last_name"]);
+  }
+  if (record["email"] !== undefined) {
+    const email = normalizeEmail(record["email"]);
+    const owner = findGuestByEmail(email);
+    if (owner && owner.id !== id) {
+      throw new ConflictError();
+    }
+    patch.email = email;
+  }
+  if (record["phone"] !== undefined) {
+    patch.phone = normalizePhone(record["phone"]);
+  }
+  if (record["attendance_status"] !== undefined) {
+    patch.attendance_status = normalizeAttendance(record["attendance_status"]);
+  }
+  if (Object.keys(patch).length === 0) {
+    throw new ValidationError("no updatable fields provided");
+  }
+
+  try {
+    const updated = persistGuestUpdate(id, patch);
+    if (!updated) {
+      throw new NotFoundError();
+    }
+    return updated;
+  } catch (err) {
+    if (err instanceof NotFoundError) throw err;
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       throw new ConflictError();
     }

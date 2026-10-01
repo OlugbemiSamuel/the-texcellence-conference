@@ -55,3 +55,24 @@ export const listGuests = (limit = 50): Guest[] => {
     .all(limit) as GuestRow[];
   return rows.map(toGuest);
 };
+
+// Allowed columns for PATCH. System fields (id, ticket_number, qr_token,
+// is_sent, created_at, updated_at) are deliberately absent: the repository
+// will never write them, so no caller can smuggle them in.
+export type GuestPatch = Partial<
+  Pick<Guest, "first_name" | "last_name" | "email" | "phone" | "attendance_status">
+>;
+
+export const updateGuestById = (id: number, patch: GuestPatch): Guest | null => {
+  const columns = Object.keys(patch) as (keyof GuestPatch)[];
+  if (columns.length === 0) return findGuestById(id);
+  const db = getDb();
+  // SET clause is built from a fixed allow-list above, never from raw
+  // client input, so column names cannot be injected. Values stay as
+  // named parameters (@first_name, ...) handled by the driver.
+  const setClause = columns.map((col) => `${col} = @${col}`).join(", ");
+  db.prepare(
+    `UPDATE guests SET ${setClause}, updated_at = datetime('now') WHERE id = @id`
+  ).run({ ...patch, id });
+  return findGuestById(id);
+};

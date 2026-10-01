@@ -21,6 +21,12 @@ export class ValidationError extends HttpError {
   }
 }
 
+// 404 - the requested resource does not exist.
+export class NotFoundError extends HttpError {
+  constructor(message = "Guest not found.") {
+    super(404, "Not found", message);
+  }
+}
 // 409 - a guest with this email already exists.
 export class ConflictError extends HttpError {
   constructor(message = "A guest with this email already exists.") {
