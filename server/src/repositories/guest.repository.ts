@@ -76,3 +76,34 @@ export const updateGuestById = (id: number, patch: GuestPatch): Guest | null => 
   ).run({ ...patch, id });
   return findGuestById(id);
 };
+
+// Result of an accreditation attempt. The single conditional UPDATE below
+// is atomic, so two simultaneous requests cannot both succeed - but a
+// zero-change result is ambiguous, and the service needs to answer
+// 404 (no such guest) vs 409 (already accredited) correctly.
+export type AccreditResult =
+  | { status: "accredited"; guest: Guest }
+  | { status: "not_found" }
+  | { status: "already_accredited"; guest: Guest };
+
+export const accreditGuestById = (id: number): AccreditResult => {
+  const db = getDb();
+  // One statement, one rule: only a row that is still NULL gets stamped.
+  // If two requests race, SQLite runs them in order and the second finds
+  // no matching row (changes = 0). No check-then-update gap exists.
+  const result = db
+    .prepare(
+      `UPDATE guests
+       SET accredited_at = datetime('now'), updated_at = datetime('now')
+       WHERE id = ? AND accredited_at IS NULL`
+    )
+    .run(id);
+  if (result.changes > 0) {
+    const guest = findGuestById(id);
+    // We just updated it, so it must exist; guard is for TypeScript.
+    if (guest) return { status: "accredited", guest };
+  }
+  const existing = findGuestById(id);
+  if (!existing) return { status: "not_found" };
+  return { status: "already_accredited", guest: existing };
+};

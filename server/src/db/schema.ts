@@ -13,7 +13,16 @@ CREATE TABLE IF NOT EXISTS guests (
   ticket_number TEXT UNIQUE,
   qr_token TEXT UNIQUE,
   is_sent INTEGER NOT NULL DEFAULT 0,
+  accredited_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+`;
+
+// Migration for development databases created before Chunk 7:
+// SQLite has no "ADD COLUMN IF NOT EXISTS", so connection.ts checks
+// PRAGMA table_info first and only then runs this statement.
+// Existing guest rows keep their data; the new column starts as NULL.
+export const ADD_ACCREDITED_AT_SQL = `
+ALTER TABLE guests ADD COLUMN accredited_at TEXT;
 `;

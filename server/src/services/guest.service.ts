@@ -1,4 +1,5 @@
 import {
+  accreditGuestById,
   createGuest,
   findGuestByEmail,
   findGuestById,
@@ -136,6 +137,21 @@ export const getGuestById = (rawId: unknown): Guest => {
     throw new NotFoundError();
   }
   return guest;
+};
+
+export const accreditGuest = (rawId: unknown): Guest => {
+  const id = parseGuestId(rawId);
+  const result = accreditGuestById(id);
+  // The atomic UPDATE already decided the outcome; here we translate it
+  // into HTTP meaning. Already-accredited keeps its ORIGINAL timestamp:
+  // the repository never rewrites it, so the first stamp stands forever.
+  if (result.status === "not_found") {
+    throw new NotFoundError();
+  }
+  if (result.status === "already_accredited") {
+    throw new ConflictError("This guest has already been accredited.");
+  }
+  return result.guest;
 };
 
 export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest => {

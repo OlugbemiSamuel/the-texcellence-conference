@@ -11,10 +11,12 @@ const badgeClass: Record<AttendanceStatus, string> = {
 
 interface GuestTableProps {
   guests: Guest[];
+  accreditingId: number | null;
   onEdit: (guest: Guest) => void;
+  onAccredit: (guest: Guest) => void;
 }
 
-export default function GuestTable({ guests, onEdit }: GuestTableProps): JSX.Element {
+export default function GuestTable({ guests, accreditingId, onEdit, onAccredit }: GuestTableProps): JSX.Element {
   if (guests.length === 0) {
     return <p className="rounded bg-white p-6 text-center text-gray-500">No guests match.</p>;
   }
@@ -28,6 +30,7 @@ export default function GuestTable({ guests, onEdit }: GuestTableProps): JSX.Ele
             <th className="px-4 py-2">Phone</th>
             <th className="px-4 py-2">Attendance</th>
             <th className="px-4 py-2">Ticket</th>
+            <th className="px-4 py-2">Accreditation</th>
             <th className="px-4 py-2">Registered</th>
             <th className="px-4 py-2" />
           </tr>
@@ -46,6 +49,29 @@ export default function GuestTable({ guests, onEdit }: GuestTableProps): JSX.Ele
                 </span>
               </td>
               <td className="px-4 py-2">{g.ticket_number ?? "-"}</td>
+              <td className="px-4 py-2">
+                {g.accredited_at ? (
+                  <span className="block">
+                    <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                      Accredited
+                    </span>
+                    <span className="block text-xs text-gray-500">
+                      {new Date(g.accredited_at).toLocaleString()}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Not accredited</span>
+                    <button
+                      onClick={() => onAccredit(g)}
+                      disabled={accreditingId === g.id}
+                      className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                    >
+                      {accreditingId === g.id ? "..." : "Accredit"}
+                    </button>
+                  </span>
+                )}
+              </td>
               <td className="px-4 py-2 text-gray-500">{new Date(g.created_at).toLocaleString()}</td>
               <td className="px-4 py-2 text-right">
                 <button onClick={() => onEdit(g)} className="rounded border px-3 py-1 hover:bg-gray-50">

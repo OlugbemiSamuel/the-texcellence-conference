@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { GUEST_TABLE_SQL } from "./schema.js";
+import { ADD_ACCREDITED_AT_SQL, GUEST_TABLE_SQL } from "./schema.js";
 
 // Learn: connection = the open door to the database file.
 // We keep ONE shared connection (singleton), like one register book
@@ -27,6 +27,13 @@ export const getDb = (): Database.Database => {
 export const initDb = (): Database.Database => {
   const database = getDb();
   database.exec(GUEST_TABLE_SQL);
+  // Chunk 7 migration: older dev databases lack accredited_at.
+  // PRAGMA table_info lists existing columns; ALTER only when missing.
+  // No data is touched - existing rows simply get NULL (not accredited).
+  const columns = database.prepare(`PRAGMA table_info(guests)`).all() as { name: string }[];
+  if (!columns.some((col) => col.name === "accredited_at")) {
+    database.exec(ADD_ACCREDITED_AT_SQL);
+  }
   return database;
 };
 

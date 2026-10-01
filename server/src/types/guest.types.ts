@@ -16,6 +16,8 @@ export interface Guest {
   ticket_number: string | null;
   qr_token: string | null;
   is_sent: number;
+  // NULL until accredited (one-day event: a guest is accredited at most once).
+  accredited_at: string | null;
   created_at: string;
   updated_at: string;
 }

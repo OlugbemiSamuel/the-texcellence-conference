@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, getErrorMessage } from "../api/client.js";
-import { listGuests } from "../api/guests.api.js";
+import { accreditGuest, getGuestById, listGuests } from "../api/guests.api.js";
 import type { AttendanceStatus, Guest } from "../types/guest.types.js";
 import type { AuthAdmin } from "../types/auth.types.js";
 import GuestEditModal from "../components/GuestEditModal.js";
@@ -25,6 +25,8 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
   const [search, setSearch] = useState("");
   const [attendance, setAttendance] = useState<AttendanceFilter>("all");
   const [editing, setEditing] = useState<Guest | null>(null);
+  const [accreditingId, setAccreditingId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async (): Promise<void> => {
@@ -43,6 +45,39 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
     };
     void load();
   }, [onAuthExpired]);
+
+  // Accreditation: disable the row button, stamp via backend, then swap
+  // the confirmed guest into the list. accredited_at from the server is
+  // the ONLY truth - no local "accredited" flags anywhere.
+  const handleAccredit = async (guest: Guest): Promise<void> => {
+    if (accreditingId !== null) return;
+    setAccreditingId(guest.id);
+    setNotice(null);
+    try {
+      const updated = await accreditGuest(guest.id);
+      setGuests((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onAuthExpired();
+        return;
+      }
+      if (err instanceof ApiError && err.status === 409) {
+        // Someone (or a double click) already stamped this guest:
+        // say so, then re-fetch the row so the UI shows the real state.
+        setNotice("This guest has already been accredited.");
+        try {
+          const fresh = await getGuestById(guest.id);
+          setGuests((prev) => prev.map((g) => (g.id === fresh.id ? fresh : g)));
+        } catch {
+          // Refresh failed - the notice already explains the situation.
+        }
+        return;
+      }
+      setNotice(getErrorMessage(err));
+    } finally {
+      setAccreditingId(null);
+    }
+  };
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -91,7 +126,14 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
             {error}
           </p>
         )}
-        {!loading && !error && <GuestTable guests={visible} onEdit={setEditing} />}
+        {notice && (
+          <p role="status" className="rounded bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            {notice}
+          </p>
+        )}
+        {!loading && !error && (
+          <GuestTable guests={visible} accreditingId={accreditingId} onEdit={setEditing} onAccredit={handleAccredit} />
+        )}
 
         {editing && (
           <GuestEditModal

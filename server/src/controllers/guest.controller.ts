@@ -4,6 +4,7 @@ import type {
   UpdateGuestBody,
 } from "../types/guest.types.js";
 import {
+  accreditGuest,
   getGuestById,
   getGuests,
   registerGuest,
@@ -50,10 +51,22 @@ export const getGuestByIdHandler = (
 export const updateGuestByIdHandler = (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): void => {
   try {
     res.json(updateGuestById(req.params.id, req.body as UpdateGuestBody));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const accreditGuestHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    res.json(accreditGuest(req.params.id));
   } catch (err) {
     next(err);
   }
