@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { CreateGuestInput, Guest } from "../types/guest.types.js";
 import { getDb } from "../db/connection.js";
 
@@ -106,4 +107,50 @@ export const accreditGuestById = (id: number): AccreditResult => {
   const existing = findGuestById(id);
   if (!existing) return { status: "not_found" };
   return { status: "already_accredited", guest: existing };
+};
+
+// Ticket format: TEX-000001, derived from the guest's own id.
+// Unique because ids are unique; human-readable; backend-only.
+// A 32-byte (64 hex char) random token: unguessable, opaque, no PII.
+const TICKET_PREFIX = "TEX";
+const QR_TOKEN_BYTES = 32;
+
+const ticketNumberFor = (id: number): string => {
+  return `${TICKET_PREFIX}-${String(id).padStart(6, "0")}`;
+};
+
+export const generateTicketCredentials = (id: number): Guest | null => {
+  const db = getDb();
+  // Transaction = all-or-nothing: the row is read, stamped, and re-read
+  // as one unit, so concurrent admins can't half-write each other's work.
+  // Idempotent: existing credentials are returned untouched, never rotated.
+  const run = db.transaction((guestId: number): Guest | null => {
+    const existing = findGuestById(guestId);
+    if (!existing) return null;
+    if (existing.ticket_number && existing.qr_token) return existing;
+    const ticket_number = existing.ticket_number ?? ticketNumberFor(guestId);
+    let qr_token = existing.qr_token;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const candidate = qr_token ?? randomBytes(QR_TOKEN_BYTES).toString("hex");
+      try {
+        db.prepare(
+          `UPDATE guests
+           SET ticket_number = @ticket_number, qr_token = @qr_token,
+               updated_at = datetime('now')
+           WHERE id = @id`
+        ).run({ ticket_number, qr_token: candidate, id: guestId });
+        qr_token = candidate;
+        break;
+      } catch (err) {
+        // Near-impossible random collision: try a fresh token, same ticket.
+        if (err instanceof Error && err.message.includes("UNIQUE") && attempt < 4) {
+          qr_token = null;
+          continue;
+        }
+        throw err;
+      }
+    }
+    return findGuestById(guestId);
+  });
+  return run(id);
 };

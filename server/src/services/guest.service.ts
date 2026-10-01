@@ -3,6 +3,7 @@ import {
   createGuest,
   findGuestByEmail,
   findGuestById,
+  generateTicketCredentials,
   listGuests,
   updateGuestById as persistGuestUpdate,
 } from "../repositories/guest.repository.js";
@@ -152,6 +153,15 @@ export const accreditGuest = (rawId: unknown): Guest => {
     throw new ConflictError("This guest has already been accredited.");
   }
   return result.guest;
+};
+
+export const generateGuestTicket = (rawId: unknown): Guest => {
+  const id = parseGuestId(rawId);
+  const guest = generateTicketCredentials(id);
+  if (!guest) {
+    throw new NotFoundError();
+  }
+  return guest;
 };
 
 export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest => {

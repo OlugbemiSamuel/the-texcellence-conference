@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   accreditGuestHandler,
+  generateTicketHandler,
   getGuestByIdHandler,
   listGuestsHandler,
   registerGuestHandler,
@@ -18,5 +19,6 @@ guestRouter.post("/", registerGuestHandler);
 guestRouter.get("/", listGuestsHandler);
 guestRouter.get("/:id", getGuestByIdHandler);
 guestRouter.patch("/:id", updateGuestByIdHandler);
-// Accreditation is staff-only: requireAuth stands guard before the handler.
+// Accreditation + tickets are staff-only: requireAuth stands guard.
 guestRouter.post("/:id/accredit", requireAuth, accreditGuestHandler);
+guestRouter.post("/:id/ticket", requireAuth, generateTicketHandler);

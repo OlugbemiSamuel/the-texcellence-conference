@@ -16,6 +16,10 @@ export const accreditGuest = async (id: number): Promise<Guest> => {
   return apiFetch<Guest>(`/api/guests/${id}/accredit`, { method: "POST" });
 };
 
+export const generateGuestTicket = async (id: number): Promise<Guest> => {
+  return apiFetch<Guest>(`/api/guests/${id}/ticket`, { method: "POST" });
+};
+
 export const updateGuest = async (id: number, patch: UpdateGuestPayload): Promise<Guest> => {
   return apiFetch<Guest>(`/api/guests/${id}`, {
     method: "PATCH",

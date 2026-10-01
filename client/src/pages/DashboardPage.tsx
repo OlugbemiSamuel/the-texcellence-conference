@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, getErrorMessage } from "../api/client.js";
-import { accreditGuest, getGuestById, listGuests } from "../api/guests.api.js";
+import { accreditGuest, generateGuestTicket, getGuestById, listGuests } from "../api/guests.api.js";
 import type { AttendanceStatus, Guest } from "../types/guest.types.js";
 import type { AuthAdmin } from "../types/auth.types.js";
 import GuestEditModal from "../components/GuestEditModal.js";
 import GuestTable from "../components/GuestTable.js";
+import TicketModal from "../components/TicketModal.js";
 
 // Learn: the dashboard owns guest DATA (the full list) while the search
 // box + filter only own FILTER state. The visible rows are derived with
@@ -26,6 +27,8 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
   const [attendance, setAttendance] = useState<AttendanceFilter>("all");
   const [editing, setEditing] = useState<Guest | null>(null);
   const [accreditingId, setAccreditingId] = useState<number | null>(null);
+  const [generatingTicketId, setGeneratingTicketId] = useState<number | null>(null);
+  const [ticketGuest, setTicketGuest] = useState<Guest | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,6 +79,28 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
       setNotice(getErrorMessage(err));
     } finally {
       setAccreditingId(null);
+    }
+  };
+
+  // Ticket generation: loading on the row, backend stamps once and
+  // returns the SAME credentials on repeat calls (idempotent), then the
+  // ticket modal opens with the confirmed guest.
+  const handleGenerateTicket = async (guest: Guest): Promise<void> => {
+    if (generatingTicketId !== null) return;
+    setGeneratingTicketId(guest.id);
+    setNotice(null);
+    try {
+      const updated = await generateGuestTicket(guest.id);
+      setGuests((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+      setTicketGuest(updated);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onAuthExpired();
+        return;
+      }
+      setNotice(getErrorMessage(err));
+    } finally {
+      setGeneratingTicketId(null);
     }
   };
 
@@ -132,8 +157,18 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
           </p>
         )}
         {!loading && !error && (
-          <GuestTable guests={visible} accreditingId={accreditingId} onEdit={setEditing} onAccredit={handleAccredit} />
+          <GuestTable
+            guests={visible}
+            accreditingId={accreditingId}
+            generatingTicketId={generatingTicketId}
+            onEdit={setEditing}
+            onAccredit={handleAccredit}
+            onGenerateTicket={handleGenerateTicket}
+            onViewTicket={setTicketGuest}
+          />
         )}
+
+        {ticketGuest && <TicketModal guest={ticketGuest} onClose={() => setTicketGuest(null)} />}
 
         {editing && (
           <GuestEditModal

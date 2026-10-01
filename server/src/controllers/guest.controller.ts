@@ -5,6 +5,7 @@ import type {
 } from "../types/guest.types.js";
 import {
   accreditGuest,
+  generateGuestTicket,
   getGuestById,
   getGuests,
   registerGuest,
@@ -67,6 +68,18 @@ export const accreditGuestHandler = (
 ): void => {
   try {
     res.json(accreditGuest(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const generateTicketHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    res.json(generateGuestTicket(req.params.id));
   } catch (err) {
     next(err);
   }

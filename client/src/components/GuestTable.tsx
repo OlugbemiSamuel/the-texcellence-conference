@@ -12,11 +12,14 @@ const badgeClass: Record<AttendanceStatus, string> = {
 interface GuestTableProps {
   guests: Guest[];
   accreditingId: number | null;
+  generatingTicketId: number | null;
   onEdit: (guest: Guest) => void;
   onAccredit: (guest: Guest) => void;
+  onGenerateTicket: (guest: Guest) => void;
+  onViewTicket: (guest: Guest) => void;
 }
 
-export default function GuestTable({ guests, accreditingId, onEdit, onAccredit }: GuestTableProps): JSX.Element {
+export default function GuestTable({ guests, accreditingId, generatingTicketId, onEdit, onAccredit, onGenerateTicket, onViewTicket }: GuestTableProps): JSX.Element {
   if (guests.length === 0) {
     return <p className="rounded bg-white p-6 text-center text-gray-500">No guests match.</p>;
   }
@@ -48,7 +51,27 @@ export default function GuestTable({ guests, accreditingId, onEdit, onAccredit }
                   {g.attendance_status}
                 </span>
               </td>
-              <td className="px-4 py-2">{g.ticket_number ?? "-"}</td>
+              <td className="px-4 py-2">
+                {g.ticket_number ? (
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium">{g.ticket_number}</span>
+                    <button onClick={() => onViewTicket(g)} className="rounded border px-3 py-1 text-xs hover:bg-gray-50">
+                      View Ticket
+                    </button>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">No Ticket</span>
+                    <button
+                      onClick={() => onGenerateTicket(g)}
+                      disabled={generatingTicketId === g.id}
+                      className="rounded bg-green-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                    >
+                      {generatingTicketId === g.id ? "..." : "Generate Ticket"}
+                    </button>
+                  </span>
+                )}
+              </td>
               <td className="px-4 py-2">
                 {g.accredited_at ? (
                   <span className="block">

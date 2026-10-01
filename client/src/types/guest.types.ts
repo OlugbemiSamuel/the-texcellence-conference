@@ -13,6 +13,8 @@ export interface Guest {
   phone: string | null;
   attendance_status: AttendanceStatus;
   ticket_number: string | null;
+  // Opaque random token (backend-generated). The QR encodes ONLY this.
+  qr_token: string | null;
   // NULL until accredited at the door; source of truth for the UI badge.
   accredited_at: string | null;
   created_at: string;
