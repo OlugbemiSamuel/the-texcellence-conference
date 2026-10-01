@@ -1,45 +1,58 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { ApiError, clearToken, getToken } from "./api/client.js";
+import { getMe } from "./api/auth.api.js";
+import type { AuthAdmin } from "./types/auth.types.js";
+import DashboardPage from "./pages/DashboardPage.js";
+import LoginPage from "./pages/LoginPage.js";
 
-type HealthResponse = {
-  status: string;
-};
+// Learn: App is the bouncer, not a page. It holds ONE question -
+// "who is signed in, if anyone?" - and shows Login or Dashboard.
+// JWT lives in localStorage; on startup we ask /api/auth/me whether
+// the stored token is still good. A dead token -> login, never dashboard.
 
 export default function App(): JSX.Element {
-  const [backendStatus, setBackendStatus] = useState<string>("checking...");
+  const [admin, setAdmin] = useState<AuthAdmin | null>(null);
+  const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    const checkHealth = async (): Promise<void> => {
-      try {
-        const res = await fetch("/api/health");
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const data: HealthResponse = (await res.json()) as HealthResponse;
-        setBackendStatus(data.status ?? "unknown");
-      } catch {
-        setBackendStatus("unreachable (is server running?)");
-      }
-    };
-
-    void checkHealth();
+  // Stable callbacks so Dashboard's load-effect runs exactly once.
+  const handleLogout = useCallback((): void => {
+    clearToken();
+    setAdmin(null);
   }, []);
 
-  return (
-    <main className="mx-auto max-w-2xl p-8 font-sans">
-      <h1 className="text-3xl font-bold">The Texcellence Conference</h1>
-      <p className="mt-2 text-gray-700">
-        Theme: Accelerating Africa&apos;s Digital Future
-      </p>
-      <p className="text-gray-700">
-        Date: 13 October 2026 | Venue: Landmark Event Centre
-      </p>
-      <hr className="my-4" />
-      <p>
-        Chunk 1 foundation: React + TypeScript + Tailwind can talk to Express.
-      </p>
-      <p className="mt-2">
-        Backend status: <strong>{backendStatus}</strong>
-      </p>
-    </main>
-  );
+  useEffect(() => {
+    const boot = async (): Promise<void> => {
+      if (!getToken()) {
+        setChecking(false);
+        return;
+      }
+      try {
+        setAdmin(await getMe());
+      } catch (err) {
+        // Invalid/expired token (or network blip on boot): safest is
+        // login screen. Clear only on 401; keep token on network error
+        // so a brief outage doesn't log the admin out.
+        if (err instanceof ApiError && err.status === 401) {
+          clearToken();
+        }
+      } finally {
+        setChecking(false);
+      }
+    };
+    void boot();
+  }, []);
+
+  if (checking) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-100">
+        <p className="text-gray-500">Checking sign in...</p>
+      </main>
+    );
+  }
+
+  if (!admin) {
+    return <LoginPage onLoggedIn={setAdmin} />;
+  }
+
+  return <DashboardPage admin={admin} onLogout={handleLogout} onAuthExpired={handleLogout} />;
 }

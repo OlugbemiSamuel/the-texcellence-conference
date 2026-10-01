@@ -3,7 +3,7 @@ node_modules/
 .env
 .env.*
 !.env.example
-
+*.tsbuildinfo
 dist/
 *.log
 *.sqlite
