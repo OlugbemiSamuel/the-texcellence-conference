@@ -5,6 +5,7 @@ import express, {
   type Response,
 } from "express";
 import { HttpError } from "./errors/http.error.js";
+import { authRouter } from "./routes/auth.routes.js";
 import { guestRouter } from "./routes/guest.routes.js";
 
 const app = express();
@@ -19,9 +20,12 @@ app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", service: "texcellence-server" });
 });
 
-// Guest registration (Chunk 3). Router handles POST /,
-// mounted here so the full path is POST /api/guests.
+// Guest management (Chunks 3-4). Router handles the paths,
+// mounted here so the full paths are /api/guests and /api/guests/:id.
 app.use("/api/guests", guestRouter);
+
+// Admin authentication (Chunk 5): POST /api/auth/login, GET /api/auth/me.
+app.use("/api/auth", authRouter);
 
 // Simple root message.
 app.get("/", (_req: Request, res: Response) => {

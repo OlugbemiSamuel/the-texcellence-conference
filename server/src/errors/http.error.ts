@@ -21,6 +21,13 @@ export class ValidationError extends HttpError {
   }
 }
 
+// 401 - authentication failed or is missing.
+export class UnauthorizedError extends HttpError {
+  constructor(message = "Invalid credentials.") {
+    super(401, "Unauthorized", message);
+  }
+}
+
 // 404 - the requested resource does not exist.
 export class NotFoundError extends HttpError {
   constructor(message = "Guest not found.") {
