@@ -1,0 +1,13 @@
+{
+  "name": "texcellence-conference",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Texcellence Conference platform - event website and management system",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "start:server": "npm --prefix server start",
+    "build:client": "npm --prefix client run build"
+  }
+}
