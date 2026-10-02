@@ -145,10 +145,17 @@ export const submitPublicRegistration = (
   const email = normalizeEmail(readField(record, "email"));
   const phone = normalizePhone(readField(record, "phone"));
   const rawAttendance = readField(record, "attendance_status");
-  const attendance_status =
-    rawAttendance === undefined || rawAttendance === null
-      ? ("pending" as AttendanceStatus)
-      : normalizeAttendance(rawAttendance);
+  // Public registration is a FINAL answer: only "yes" or "no".
+  // "pending" means "not yet responded" (e.g. admin-created guests) and
+  // must never be submitted here; missing/invalid values are rejected.
+  // The frontend choice screen is convenience only - THIS is the boundary.
+  if (rawAttendance === undefined || rawAttendance === null) {
+    throw new ValidationError("attendance_status is required");
+  }
+  const attendance_status = normalizeAttendance(rawAttendance);
+  if (attendance_status === "pending") {
+    throw new ValidationError('attendance_status must be "yes" or "no"');
+  }
 
   const existing = findGuestByEmail(email);
   if (existing) {

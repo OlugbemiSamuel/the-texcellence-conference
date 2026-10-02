@@ -9,7 +9,8 @@ export interface RegistrationPayload {
   last_name: string;
   email: string;
   phone?: string;
-  attendance_status: "pending";
+  // Public registration is a final answer: only "yes" or "no".
+  attendance_status: "yes" | "no";
 }
 
 export const submitRegistration = async (payload: RegistrationPayload): Promise<Guest> => {
