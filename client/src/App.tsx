@@ -4,20 +4,31 @@ import { getMe } from "./api/auth.api.js";
 import type { AuthAdmin } from "./types/auth.types.js";
 import DashboardPage from "./pages/DashboardPage.js";
 import LoginPage from "./pages/LoginPage.js";
+import RegisterPage from "./pages/RegisterPage.js";
 
-// Learn: App is the bouncer, not a page. It holds ONE question -
-// "who is signed in, if anyone?" - and shows Login or Dashboard.
-// JWT lives in localStorage; on startup we ask /api/auth/me whether
-// the stored token is still good. A dead token -> login, never dashboard.
+// Minimal public routing without a router library: "#/register" shows the
+// public form (no login needed); anything else is the admin flow.
+// Hash routing needs no server rewrite rules, so it works on Vite dev,
+// preview, and plain cPanel static hosting alike.
+const isRegisterHash = (): boolean => window.location.hash === "#/register";
 
 export default function App(): JSX.Element {
   const [admin, setAdmin] = useState<AuthAdmin | null>(null);
   const [checking, setChecking] = useState(true);
+  const [route, setRoute] = useState<string>(isRegisterHash() ? "register" : "admin");
 
   // Stable callbacks so Dashboard's load-effect runs exactly once.
   const handleLogout = useCallback((): void => {
     clearToken();
     setAdmin(null);
+  }, []);
+
+  useEffect(() => {
+    const onHashChange = (): void => {
+      setRoute(isRegisterHash() ? "register" : "admin");
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   useEffect(() => {
@@ -48,6 +59,10 @@ export default function App(): JSX.Element {
         <p className="text-gray-500">Checking sign in...</p>
       </main>
     );
+  }
+
+  if (route === "register") {
+    return <RegisterPage />;
   }
 
   if (!admin) {

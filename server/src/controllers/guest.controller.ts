@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type {
+  PublicRegistrationBody,
   RegisterGuestBody,
   UpdateGuestBody,
 } from "../types/guest.types.js";
@@ -9,6 +10,7 @@ import {
   getGuestById,
   getGuests,
   registerGuest,
+  submitPublicRegistration,
   updateGuestById,
 } from "../services/guest.service.js";
 
@@ -80,6 +82,23 @@ export const generateTicketHandler = (
 ): void => {
   try {
     res.json(generateGuestTicket(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Public registration: 201 for a brand-new guest, 200 when an existing
+// email re-registers (record updated, no duplicate created).
+export const submitRegistrationHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    const { guest, created } = submitPublicRegistration(
+      req.body as PublicRegistrationBody
+    );
+    res.status(created ? 201 : 200).json(guest);
   } catch (err) {
     next(err);
   }

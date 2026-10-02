@@ -7,6 +7,7 @@ import express, {
 import { HttpError } from "./errors/http.error.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { guestRouter } from "./routes/guest.routes.js";
+import { registrationRouter } from "./routes/registration.routes.js";
 
 const app = express();
 
@@ -26,6 +27,10 @@ app.use("/api/guests", guestRouter);
 
 // Admin authentication (Chunk 5): POST /api/auth/login, GET /api/auth/me.
 app.use("/api/auth", authRouter);
+
+// Public registration (README Chunk 3): POST /api/registration.
+// No requireAuth: guests register themselves.
+app.use("/api/registration", registrationRouter);
 
 // Simple root message.
 app.get("/", (_req: Request, res: Response) => {

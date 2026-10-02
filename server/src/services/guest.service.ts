@@ -11,6 +11,7 @@ import type {
   AttendanceStatus,
   CreateGuestInput,
   Guest,
+  PublicRegistrationBody,
   RegisterGuestBody,
   UpdateGuestBody,
   UpdateGuestInput,
@@ -129,6 +130,61 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
 
 export const getGuests = (): Guest[] => {
   return listGuests();
+};
+
+// Public registration (no login needed): create-or-update by email.
+// New email -> 201 with a fresh guest. Known email -> 200 updating ONLY
+// the 5 registration fields, so ticket_number, qr_token and accredited_at
+// survive untouched (persistGuestUpdate cannot write those columns).
+export const submitPublicRegistration = (
+  body: PublicRegistrationBody
+): { guest: Guest; created: boolean } => {
+  const record = body as Record<string, unknown>;
+  const first_name = normalizeFirstName(readField(record, "first_name"));
+  const last_name = normalizeLastName(readField(record, "last_name"));
+  const email = normalizeEmail(readField(record, "email"));
+  const phone = normalizePhone(readField(record, "phone"));
+  const rawAttendance = readField(record, "attendance_status");
+  const attendance_status =
+    rawAttendance === undefined || rawAttendance === null
+      ? ("pending" as AttendanceStatus)
+      : normalizeAttendance(rawAttendance);
+
+  const existing = findGuestByEmail(email);
+  if (existing) {
+    const updated = persistGuestUpdate(existing.id, {
+      first_name,
+      last_name,
+      email,
+      phone,
+      attendance_status,
+    });
+    // We just found it, so it must still be there; guard is for TypeScript.
+    if (!updated) throw new NotFoundError();
+    return { guest: updated, created: false };
+  }
+
+  try {
+    return {
+      guest: createGuest({ first_name, last_name, email, phone, attendance_status }),
+      created: true,
+    };
+  } catch (err) {
+    if (!(err instanceof Error && err.message.includes("UNIQUE"))) throw err;
+    // Race: someone registered this email a split second ago.
+    // Fall through to the update path instead of erroring.
+    const raced = findGuestByEmail(email);
+    if (!raced) throw err;
+    const updated = persistGuestUpdate(raced.id, {
+      first_name,
+      last_name,
+      email,
+      phone,
+      attendance_status,
+    });
+    if (!updated) throw new NotFoundError();
+    return { guest: updated, created: false };
+  }
 };
 
 export const getGuestById = (rawId: unknown): Guest => {
