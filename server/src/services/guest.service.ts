@@ -6,6 +6,7 @@ import {
   generateTicketCredentials,
   listGuests,
   markRsvpSent,
+  searchGuests as findGuestsByQuery,
   updateGuestById as persistGuestUpdate,
 } from "../repositories/guest.repository.js";
 import type {
@@ -133,6 +134,16 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
 
 export const getGuests = (): Guest[] => {
   return listGuests();
+};
+
+// Accreditation-desk search: short/blank input returns [] (a calm empty
+// result, not an error). Email is lowercased before matching, consistent
+// with how registration normalizes stored emails.
+export const searchGuests = (rawQuery: unknown): Guest[] => {
+  if (typeof rawQuery !== "string") return [];
+  const query = rawQuery.trim().toLowerCase();
+  if (query.length < 2) return [];
+  return findGuestsByQuery(query);
 };
 
 // Public registration (no login needed): create-or-update by email.

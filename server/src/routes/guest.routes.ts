@@ -5,6 +5,7 @@ import {
   getGuestByIdHandler,
   listGuestsHandler,
   registerGuestHandler,
+  searchGuestsHandler,
   sendRsvpHandler,
   updateGuestByIdHandler,
 } from "../controllers/guest.controller.js";
@@ -18,6 +19,9 @@ export const guestRouter = Router();
 
 guestRouter.post("/", registerGuestHandler);
 guestRouter.get("/", listGuestsHandler);
+// /search MUST sit above /:id: Express matches top-down and "search"
+// would otherwise be mistaken for a guest id.
+guestRouter.get("/search", requireAuth, searchGuestsHandler);
 guestRouter.get("/:id", getGuestByIdHandler);
 guestRouter.patch("/:id", updateGuestByIdHandler);
 // Accreditation + tickets + RSVP are staff-only: requireAuth stands guard.

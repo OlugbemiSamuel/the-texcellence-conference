@@ -147,9 +147,14 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
           <h1 className="font-bold">Texcellence Admin</h1>
           <p className="text-xs text-gray-500">{admin.email}</p>
         </div>
-        <button onClick={onLogout} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">
-          Log out
-        </button>
+        <div className="flex gap-2">
+          <a href="#/accredit" className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white">
+            Accreditation
+          </a>
+          <button onClick={onLogout} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">
+            Log out
+          </button>
+        </div>
       </header>
 
       <section className="mx-auto max-w-6xl space-y-4 p-6">

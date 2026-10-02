@@ -3,19 +3,25 @@ import { ApiError, clearToken, getToken } from "./api/client.js";
 import { getMe } from "./api/auth.api.js";
 import type { AuthAdmin } from "./types/auth.types.js";
 import DashboardPage from "./pages/DashboardPage.js";
+import AccreditPage from "./pages/AccreditPage.js";
 import LoginPage from "./pages/LoginPage.js";
 import RegisterPage from "./pages/RegisterPage.js";
 
 // Minimal public routing without a router library: "#/register" shows the
-// public form (no login needed); anything else is the admin flow.
+// public form (no login needed); "#/accredit" shows the accreditation desk
+// (admin only); anything else is the admin dashboard.
 // Hash routing needs no server rewrite rules, so it works on Vite dev,
 // preview, and plain cPanel static hosting alike.
-const isRegisterHash = (): boolean => window.location.hash === "#/register";
+const routeFromHash = (): string => {
+  if (window.location.hash === "#/register") return "register";
+  if (window.location.hash === "#/accredit") return "accredit";
+  return "admin";
+};
 
 export default function App(): JSX.Element {
   const [admin, setAdmin] = useState<AuthAdmin | null>(null);
   const [checking, setChecking] = useState(true);
-  const [route, setRoute] = useState<string>(isRegisterHash() ? "register" : "admin");
+  const [route, setRoute] = useState<string>(routeFromHash());
 
   // Stable callbacks so Dashboard's load-effect runs exactly once.
   const handleLogout = useCallback((): void => {
@@ -25,7 +31,7 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const onHashChange = (): void => {
-      setRoute(isRegisterHash() ? "register" : "admin");
+      setRoute(routeFromHash());
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
@@ -67,6 +73,10 @@ export default function App(): JSX.Element {
 
   if (!admin) {
     return <LoginPage onLoggedIn={setAdmin} />;
+  }
+
+  if (route === "accredit") {
+    return <AccreditPage onAuthExpired={handleLogout} />;
   }
 
   return <DashboardPage admin={admin} onLogout={handleLogout} onAuthExpired={handleLogout} />;

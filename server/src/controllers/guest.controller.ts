@@ -10,6 +10,7 @@ import {
   getGuestById,
   getGuests,
   registerGuest,
+  searchGuests,
   sendGuestRsvp,
   submitPublicRegistration,
   updateGuestById,
@@ -35,6 +36,18 @@ export const listGuestsHandler = (
 ): void => {
   try {
     res.json(getGuests());
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const searchGuestsHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  try {
+    res.json(searchGuests(req.query.q));
   } catch (err) {
     next(err);
   }

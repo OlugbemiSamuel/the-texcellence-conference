@@ -57,6 +57,29 @@ export const listGuests = (limit = 50): Guest[] => {
   return rows.map(toGuest);
 };
 
+// Read-only search for the accreditation desk. One parameterized LIKE per
+// meaningful identifier; % and _ in the input are escaped so they match
+// literally instead of acting as wildcards. No data is ever modified here.
+export const searchGuests = (query: string, limit = 20): Guest[] => {
+  const term = query.trim();
+  if (term === "") return [];
+  const like = `%${term.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+  const capped = Math.min(Math.max(limit, 1), 50);
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT * FROM guests
+       WHERE first_name LIKE ? ESCAPE '\\'
+          OR last_name LIKE ? ESCAPE '\\'
+          OR email LIKE ? ESCAPE '\\'
+          OR phone LIKE ? ESCAPE '\\'
+          OR ticket_number LIKE ? ESCAPE '\\'
+       ORDER BY id ASC LIMIT ?`
+    )
+    .all(like, like, like, like, like, capped) as GuestRow[];
+  return rows.map(toGuest);
+};
+
 // Allowed columns for PATCH. System fields (id, ticket_number, qr_token,
 // is_sent, created_at, updated_at) are deliberately absent: the repository
 // will never write them, so no caller can smuggle them in.
