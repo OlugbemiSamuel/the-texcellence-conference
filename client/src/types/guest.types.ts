@@ -15,6 +15,8 @@ export interface Guest {
   ticket_number: string | null;
   // Opaque random token (backend-generated). The QR encodes ONLY this.
   qr_token: string | null;
+  // 1 once an RSVP email was accepted by SMTP; drives the Sent badge.
+  is_sent: number;
   // NULL until accredited at the door; source of truth for the UI badge.
   accredited_at: string | null;
   created_at: string;

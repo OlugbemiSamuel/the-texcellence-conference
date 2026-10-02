@@ -5,6 +5,7 @@ import {
   findGuestById,
   generateTicketCredentials,
   listGuests,
+  markRsvpSent,
   updateGuestById as persistGuestUpdate,
 } from "../repositories/guest.repository.js";
 import type {
@@ -21,6 +22,8 @@ import {
   NotFoundError,
   ValidationError,
 } from "../errors/http.error.js";
+import { sendRsvpEmail } from "./email.service.js";
+import type { Transporter } from "nodemailer";
 
 // Learn: service = the supervisor. It never touches the register book (SQL)
 // and never talks HTTP. It enforces business rules: valid input, clean
@@ -225,6 +228,31 @@ export const generateGuestTicket = (rawId: unknown): Guest => {
     throw new NotFoundError();
   }
   return guest;
+};
+
+// Explicit admin action only: nothing sends mail automatically.
+// is_sent flips to 1 strictly AFTER SMTP accepts the message;
+// any failure leaves it untouched, so 1 always means "delivered".
+// The optional transporter is a test seam: production passes none
+// (real SMTP from env), tests inject a fake. Never user input.
+export const sendGuestRsvp = async (
+  rawId: unknown,
+  transporter?: Transporter
+): Promise<Guest> => {
+  const id = parseGuestId(rawId);
+  const guest = findGuestById(id);
+  if (!guest) {
+    throw new NotFoundError();
+  }
+  if (!guest.email || guest.email.trim() === "") {
+    throw new ValidationError("Guest has no usable email address.");
+  }
+  await sendRsvpEmail(guest, transporter);
+  const updated = markRsvpSent(id);
+  if (!updated) {
+    throw new NotFoundError();
+  }
+  return updated;
 };
 
 export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest => {

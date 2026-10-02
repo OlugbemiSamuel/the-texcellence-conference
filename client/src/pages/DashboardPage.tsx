@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, getErrorMessage } from "../api/client.js";
-import { accreditGuest, generateGuestTicket, getGuestById, listGuests } from "../api/guests.api.js";
+import { accreditGuest, generateGuestTicket, getGuestById, listGuests, sendRsvp } from "../api/guests.api.js";
 import type { AttendanceStatus, Guest } from "../types/guest.types.js";
 import type { AuthAdmin } from "../types/auth.types.js";
 import GuestEditModal from "../components/GuestEditModal.js";
@@ -28,6 +28,7 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
   const [editing, setEditing] = useState<Guest | null>(null);
   const [accreditingId, setAccreditingId] = useState<number | null>(null);
   const [generatingTicketId, setGeneratingTicketId] = useState<number | null>(null);
+  const [sendingRsvpId, setSendingRsvpId] = useState<number | null>(null);
   const [ticketGuest, setTicketGuest] = useState<Guest | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -104,6 +105,28 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
     }
   };
 
+  // RSVP: per-row loading, success swaps the confirmed guest in (its
+  // is_sent is now 1, so the Sent badge appears). Failures surface in
+  // the notice banner; a dead token returns to login like everywhere else.
+  const handleSendRsvp = async (guest: Guest): Promise<void> => {
+    if (sendingRsvpId !== null) return;
+    setSendingRsvpId(guest.id);
+    setNotice(null);
+    try {
+      const updated = await sendRsvp(guest.id);
+      setGuests((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+      setNotice(`RSVP email sent to ${updated.email}.`);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onAuthExpired();
+        return;
+      }
+      setNotice(getErrorMessage(err));
+    } finally {
+      setSendingRsvpId(null);
+    }
+  };
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return guests.filter((g) => {
@@ -161,10 +184,12 @@ export default function DashboardPage({ admin, onLogout, onAuthExpired }: Dashbo
             guests={visible}
             accreditingId={accreditingId}
             generatingTicketId={generatingTicketId}
+            sendingRsvpId={sendingRsvpId}
             onEdit={setEditing}
             onAccredit={handleAccredit}
             onGenerateTicket={handleGenerateTicket}
             onViewTicket={setTicketGuest}
+            onSendRsvp={handleSendRsvp}
           />
         )}
 

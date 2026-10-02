@@ -5,6 +5,7 @@ import {
   getGuestByIdHandler,
   listGuestsHandler,
   registerGuestHandler,
+  sendRsvpHandler,
   updateGuestByIdHandler,
 } from "../controllers/guest.controller.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -19,6 +20,7 @@ guestRouter.post("/", registerGuestHandler);
 guestRouter.get("/", listGuestsHandler);
 guestRouter.get("/:id", getGuestByIdHandler);
 guestRouter.patch("/:id", updateGuestByIdHandler);
-// Accreditation + tickets are staff-only: requireAuth stands guard.
+// Accreditation + tickets + RSVP are staff-only: requireAuth stands guard.
 guestRouter.post("/:id/accredit", requireAuth, accreditGuestHandler);
 guestRouter.post("/:id/ticket", requireAuth, generateTicketHandler);
+guestRouter.post("/:id/rsvp", requireAuth, sendRsvpHandler);

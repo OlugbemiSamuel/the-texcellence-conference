@@ -40,3 +40,11 @@ export class ConflictError extends HttpError {
     super(409, "Guest already exists", message);
   }
 }
+
+// 502 - sending the email failed (SMTP is a downstream dependency).
+// Message stays generic: never credentials, host details, or stack traces.
+export class EmailError extends HttpError {
+  constructor(message = "Could not send the RSVP email. Please try again later.") {
+    super(502, "Email delivery failed", message);
+  }
+}

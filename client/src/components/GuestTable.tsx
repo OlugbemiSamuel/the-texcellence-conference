@@ -13,13 +13,15 @@ interface GuestTableProps {
   guests: Guest[];
   accreditingId: number | null;
   generatingTicketId: number | null;
+  sendingRsvpId: number | null;
   onEdit: (guest: Guest) => void;
   onAccredit: (guest: Guest) => void;
   onGenerateTicket: (guest: Guest) => void;
   onViewTicket: (guest: Guest) => void;
+  onSendRsvp: (guest: Guest) => void;
 }
 
-export default function GuestTable({ guests, accreditingId, generatingTicketId, onEdit, onAccredit, onGenerateTicket, onViewTicket }: GuestTableProps): JSX.Element {
+export default function GuestTable({ guests, accreditingId, generatingTicketId, sendingRsvpId, onEdit, onAccredit, onGenerateTicket, onViewTicket, onSendRsvp }: GuestTableProps): JSX.Element {
   if (guests.length === 0) {
     return <p className="rounded bg-white p-6 text-center text-gray-500">No guests match.</p>;
   }
@@ -34,6 +36,7 @@ export default function GuestTable({ guests, accreditingId, generatingTicketId, 
             <th className="px-4 py-2">Attendance</th>
             <th className="px-4 py-2">Ticket</th>
             <th className="px-4 py-2">Accreditation</th>
+            <th className="px-4 py-2">RSVP</th>
             <th className="px-4 py-2">Registered</th>
             <th className="px-4 py-2" />
           </tr>
@@ -93,6 +96,21 @@ export default function GuestTable({ guests, accreditingId, generatingTicketId, 
                       {accreditingId === g.id ? "..." : "Accredit"}
                     </button>
                   </span>
+                )}
+              </td>
+              <td className="px-4 py-2">
+                {g.is_sent === 1 ? (
+                  <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                    Sent
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => onSendRsvp(g)}
+                    disabled={sendingRsvpId === g.id}
+                    className="rounded bg-purple-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    {sendingRsvpId === g.id ? "..." : "Send RSVP"}
+                  </button>
                 )}
               </td>
               <td className="px-4 py-2 text-gray-500">{new Date(g.created_at).toLocaleString()}</td>

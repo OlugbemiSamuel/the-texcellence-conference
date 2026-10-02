@@ -10,6 +10,7 @@ import {
   getGuestById,
   getGuests,
   registerGuest,
+  sendGuestRsvp,
   submitPublicRegistration,
   updateGuestById,
 } from "../services/guest.service.js";
@@ -82,6 +83,18 @@ export const generateTicketHandler = (
 ): void => {
   try {
     res.json(generateGuestTicket(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const sendRsvpHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    res.json(await sendGuestRsvp(req.params.id));
   } catch (err) {
     next(err);
   }

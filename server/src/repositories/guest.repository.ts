@@ -109,6 +109,18 @@ export const accreditGuestById = (id: number): AccreditResult => {
   return { status: "already_accredited", guest: existing };
 };
 
+// Marks the RSVP email as sent. Called ONLY after SMTP confirms delivery,
+// so is_sent = 1 always means "the mail server accepted it".
+// Nothing else in the codebase writes this column: PATCH rejects it,
+// public registration cannot touch it, admin creation leaves it 0.
+export const markRsvpSent = (id: number): Guest | null => {
+  const db = getDb();
+  db.prepare(
+    `UPDATE guests SET is_sent = 1, updated_at = datetime('now') WHERE id = ?`
+  ).run(id);
+  return findGuestById(id);
+};
+
 // Ticket format: TEX-000001, derived from the guest's own id.
 // Unique because ids are unique; human-readable; backend-only.
 // A 32-byte (64 hex char) random token: unguessable, opaque, no PII.
