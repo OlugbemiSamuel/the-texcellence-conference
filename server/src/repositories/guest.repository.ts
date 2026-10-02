@@ -49,6 +49,17 @@ export const findGuestByEmail = (email: string): Guest | null => {
   return row ? toGuest(row) : null;
 };
 
+// QR lookup for the accreditation desk: resolves an opaque token to its
+// guest. Read-only, single parameterized query - the token is data,
+// never SQL. Scanning only IDENTIFIES; accreditation is a separate call.
+export const findGuestByQrToken = (qrToken: string): Guest | null => {
+  const db = getDb();
+  const row = db
+    .prepare(`SELECT * FROM guests WHERE qr_token = ?`)
+    .get(qrToken) as GuestRow | undefined;
+  return row ? toGuest(row) : null;
+};
+
 export const listGuests = (limit = 50): Guest[] => {
   const db = getDb();
   const rows = db

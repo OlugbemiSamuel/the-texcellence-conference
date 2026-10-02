@@ -20,6 +20,10 @@ export const searchGuests = async (query: string): Promise<Guest[]> => {
   return apiFetch<Guest[]>(`/api/guests/search?q=${encodeURIComponent(query)}`);
 };
 
+export const getGuestByQrToken = async (token: string): Promise<Guest> => {
+  return apiFetch<Guest>(`/api/guests/qr/${encodeURIComponent(token)}`);
+};
+
 export const generateGuestTicket = async (id: number): Promise<Guest> => {
   return apiFetch<Guest>(`/api/guests/${id}/ticket`, { method: "POST" });
 };

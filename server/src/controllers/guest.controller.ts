@@ -8,6 +8,7 @@ import {
   accreditGuest,
   generateGuestTicket,
   getGuestById,
+  getGuestByQrToken,
   getGuests,
   registerGuest,
   searchGuests,
@@ -48,6 +49,18 @@ export const searchGuestsHandler = (
 ): void => {
   try {
     res.json(searchGuests(req.query.q));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getGuestByQrTokenHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  try {
+    res.json(getGuestByQrToken(req.params.token));
   } catch (err) {
     next(err);
   }

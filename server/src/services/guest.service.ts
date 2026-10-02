@@ -3,6 +3,7 @@ import {
   createGuest,
   findGuestByEmail,
   findGuestById,
+  findGuestByQrToken,
   generateTicketCredentials,
   listGuests,
   markRsvpSent,
@@ -134,6 +135,26 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
 
 export const getGuests = (): Guest[] => {
   return listGuests();
+};
+
+// QR tokens are 64 hex chars (32 random bytes). Anything else is rejected
+// BEFORE touching the database. Unknown-but-valid tokens are 404, the
+// same "not found" the rest of the API uses. Lookup never accredits.
+const QR_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+
+export const getGuestByQrToken = (rawToken: unknown): Guest => {
+  if (typeof rawToken !== "string" || rawToken.trim() === "") {
+    throw new ValidationError("QR token is required");
+  }
+  const token = rawToken.trim().toLowerCase();
+  if (!QR_TOKEN_PATTERN.test(token)) {
+    throw new ValidationError("QR token is invalid");
+  }
+  const guest = findGuestByQrToken(token);
+  if (!guest) {
+    throw new NotFoundError("Guest not found for this QR code.");
+  }
+  return guest;
 };
 
 // Accreditation-desk search: short/blank input returns [] (a calm empty

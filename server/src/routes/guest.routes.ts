@@ -3,6 +3,7 @@ import {
   accreditGuestHandler,
   generateTicketHandler,
   getGuestByIdHandler,
+  getGuestByQrTokenHandler,
   listGuestsHandler,
   registerGuestHandler,
   searchGuestsHandler,
@@ -22,6 +23,9 @@ guestRouter.get("/", listGuestsHandler);
 // /search MUST sit above /:id: Express matches top-down and "search"
 // would otherwise be mistaken for a guest id.
 guestRouter.get("/search", requireAuth, searchGuestsHandler);
+// Two-segment path, so /:id (one segment) can never swallow it,
+// but it stays grouped with the other staff-only lookups regardless.
+guestRouter.get("/qr/:token", requireAuth, getGuestByQrTokenHandler);
 guestRouter.get("/:id", getGuestByIdHandler);
 guestRouter.patch("/:id", updateGuestByIdHandler);
 // Accreditation + tickets + RSVP are staff-only: requireAuth stands guard.
