@@ -85,9 +85,12 @@ export default function QrScanner({ onScan, onError }: QrScannerProps): JSX.Elem
   }, []);
 
   return (
-    <div className="rounded bg-white p-4 shadow">
-      <div id={SCANNER_REGION_ID} className="overflow-hidden rounded" />
-      <p className="mt-2 text-center text-xs text-gray-500">Point the camera at the guest&apos;s QR code</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div id={SCANNER_REGION_ID} className="min-h-[240px] overflow-hidden rounded-lg bg-slate-900" />
+      <p className="mt-3 text-center text-xs text-slate-500">
+        Point the camera at the guest&apos;s QR code. Scanning only identifies the guest -
+        you still press Accredit afterwards.
+      </p>
     </div>
   );
 }

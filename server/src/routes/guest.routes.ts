@@ -18,7 +18,7 @@ import { requireAuth } from "../middleware/requireAuth.js";
 
 export const guestRouter = Router();
 
-guestRouter.post("/", registerGuestHandler);
+guestRouter.post("/", requireAuth, registerGuestHandler);
 guestRouter.get("/", listGuestsHandler);
 // /search MUST sit above /:id: Express matches top-down and "search"
 // would otherwise be mistaken for a guest id.

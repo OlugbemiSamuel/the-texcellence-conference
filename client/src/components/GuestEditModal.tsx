@@ -2,6 +2,7 @@ import { useState } from "react";
 import { updateGuest } from "../api/guests.api.js";
 import { ApiError, getErrorMessage } from "../api/client.js";
 import type { AttendanceStatus, Guest, UpdateGuestPayload } from "../types/guest.types.js";
+import { alertErrorCls, btnPrimary, btnSecondary, inputCls } from "./ui.js";
 
 // Learn: the modal owns a DRAFT copy of the guest. Typing edits the draft,
 // Save sends only the 5 allowed fields via PATCH. The list updates only
@@ -50,47 +51,43 @@ export default function GuestEditModal({ guest, onClose, onSaved, onAuthExpired 
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4">
-      <section className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-bold">Edit guest</h2>
-        <form onSubmit={handleSave} className="mt-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-sm">
-              First name
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="mt-1 w-full rounded border px-3 py-2" />
-            </label>
-            <label className="block text-sm">
-              Last name
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="mt-1 w-full rounded border px-3 py-2" />
-            </label>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-brand-deep/60 p-4">
+      <section aria-labelledby="edit-guest-heading" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl sm:p-8">
+        <h2 id="edit-guest-heading" className="text-lg font-bold text-slate-900">Edit guest</h2>
+        <form onSubmit={handleSave} className="mt-4 space-y-4" noValidate>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="edit-first" className="block text-sm font-medium text-slate-700">First name</label>
+              <input id="edit-first" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label htmlFor="edit-last" className="block text-sm font-medium text-slate-700">Last name</label>
+              <input id="edit-last" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputCls} />
+            </div>
           </div>
-          <label className="block text-sm">
-            Email
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded border px-3 py-2" />
-          </label>
-          <label className="block text-sm">
-            Phone
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional" className="mt-1 w-full rounded border px-3 py-2" />
-          </label>
-          <label className="block text-sm">
-            Attendance
-            <select value={attendance} onChange={(e) => setAttendance(e.target.value as AttendanceStatus)} className="mt-1 w-full rounded border px-3 py-2">
+          <div>
+            <label htmlFor="edit-email" className="block text-sm font-medium text-slate-700">Email</label>
+            <input id="edit-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700">Phone</label>
+            <input id="edit-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional" className={inputCls} />
+          </div>
+          <div>
+            <label htmlFor="edit-attendance" className="block text-sm font-medium text-slate-700">Attendance</label>
+            <select id="edit-attendance" value={attendance} onChange={(e) => setAttendance(e.target.value as AttendanceStatus)} className={inputCls}>
               <option value="pending">pending</option>
               <option value="yes">yes</option>
               <option value="no">no</option>
             </select>
-          </label>
-          {error && (
-            <p role="alert" className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} disabled={loading} className="rounded border px-4 py-2">
+          </div>
+          {error && <p role="alert" className={alertErrorCls}>{error}</p>}
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onClose} disabled={loading} className={btnSecondary}>
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="rounded bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50">
-              {loading ? "Saving..." : "Save"}
+            <button type="submit" disabled={loading} className={btnPrimary}>
+              {loading ? "Saving..." : "Save changes"}
             </button>
           </div>
         </form>

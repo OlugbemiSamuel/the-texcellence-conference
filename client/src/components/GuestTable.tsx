@@ -1,16 +1,18 @@
 import type { AttendanceStatus, Guest } from "../types/guest.types.js";
+import { Badge, btnSmallAccent, btnSmallGhost, btnSmallPrimary } from "./ui.js";
 
-// Learn: a tiny lookup turns the attendance word into a colored badge.
-// pending = amber (waiting), yes = green (coming), no = gray (not coming).
+// Learn: status pills carry a text label plus colour, so meaning never
+// depends on hue alone. Action buttons share one size/shape language.
 
-const badgeClass: Record<AttendanceStatus, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  yes: "bg-green-100 text-green-800",
-  no: "bg-gray-200 text-gray-700",
+const attendanceTone: Record<AttendanceStatus, "amber" | "green" | "gray"> = {
+  pending: "amber",
+  yes: "green",
+  no: "gray",
 };
 
 interface GuestTableProps {
   guests: Guest[];
+  startIndex: number;
   accreditingId: number | null;
   generatingTicketId: number | null;
   sendingRsvpId: number | null;
@@ -21,101 +23,102 @@ interface GuestTableProps {
   onSendRsvp: (guest: Guest) => void;
 }
 
-export default function GuestTable({ guests, accreditingId, generatingTicketId, sendingRsvpId, onEdit, onAccredit, onGenerateTicket, onViewTicket, onSendRsvp }: GuestTableProps): JSX.Element {
+export default function GuestTable({ guests, startIndex, accreditingId, generatingTicketId, sendingRsvpId, onEdit, onAccredit, onGenerateTicket, onViewTicket, onSendRsvp }: GuestTableProps): JSX.Element {
   if (guests.length === 0) {
-    return <p className="rounded bg-white p-6 text-center text-gray-500">No guests match.</p>;
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <p className="font-medium text-slate-700">No guests found</p>
+        <p className="mt-1 text-sm text-slate-500">Try a different search or filter.</p>
+      </div>
+    );
   }
   return (
-    <div className="overflow-x-auto rounded bg-white shadow">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="border-b bg-gray-50">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table className="w-full min-w-[860px] text-left text-sm">
+        <thead className="border-b border-slate-200 bg-slate-50">
           <tr>
-            <th className="px-4 py-2">Name</th>
-            <th className="px-4 py-2">Email</th>
-            <th className="px-4 py-2">Phone</th>
-            <th className="px-4 py-2">Attendance</th>
-            <th className="px-4 py-2">Ticket</th>
-            <th className="px-4 py-2">Accreditation</th>
-            <th className="px-4 py-2">RSVP</th>
-            <th className="px-4 py-2">Registered</th>
-            <th className="px-4 py-2" />
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">#</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Name</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Email</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Phone</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Attendance</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Ticket</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Accreditation</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">RSVP</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Registered</th>
+            <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
-          {guests.map((g) => (
-            <tr key={g.id} className="border-b last:border-0">
-              <td className="px-4 py-2 font-medium">
+          {guests.map((g, i) => (
+            <tr key={g.id} className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50">
+              <td className="px-4 py-3 tabular-nums text-slate-400">{startIndex + i + 1}</td>
+              <td className="px-4 py-3 font-semibold text-slate-900">
                 {g.first_name} {g.last_name}
               </td>
-              <td className="px-4 py-2">{g.email}</td>
-              <td className="px-4 py-2">{g.phone ?? "-"}</td>
-              <td className="px-4 py-2">
-                <span className={`rounded px-2 py-0.5 text-xs font-medium ${badgeClass[g.attendance_status]}`}>
-                  {g.attendance_status}
-                </span>
+              <td className="px-4 py-3 text-slate-700">{g.email}</td>
+              <td className="px-4 py-3 text-slate-700">{g.phone ?? "-"}</td>
+              <td className="px-4 py-3">
+                <Badge tone={attendanceTone[g.attendance_status]}>{g.attendance_status}</Badge>
               </td>
-              <td className="px-4 py-2">
+              <td className="px-4 py-3">
                 {g.ticket_number ? (
                   <span className="flex items-center gap-2">
-                    <span className="font-medium">{g.ticket_number}</span>
-                    <button onClick={() => onViewTicket(g)} className="rounded border px-3 py-1 text-xs hover:bg-gray-50">
+                    <span className="font-semibold text-slate-900">{g.ticket_number}</span>
+                    <button onClick={() => onViewTicket(g)} className={btnSmallGhost}>
                       View Ticket
                     </button>
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">No Ticket</span>
+                    <span className="text-xs text-slate-500">No Ticket</span>
                     <button
                       onClick={() => onGenerateTicket(g)}
                       disabled={generatingTicketId === g.id}
-                      className="rounded bg-green-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                      className={btnSmallAccent}
                     >
                       {generatingTicketId === g.id ? "..." : "Generate Ticket"}
                     </button>
                   </span>
                 )}
               </td>
-              <td className="px-4 py-2">
+              <td className="px-4 py-3">
                 {g.accredited_at ? (
                   <span className="block">
-                    <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-                      Accredited
-                    </span>
-                    <span className="block text-xs text-gray-500">
+                    <Badge tone="blue">Accredited</Badge>
+                    <span className="mt-0.5 block text-xs text-slate-500">
                       {new Date(g.accredited_at).toLocaleString()}
                     </span>
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Not accredited</span>
+                    <span className="text-xs text-slate-500">Not accredited</span>
                     <button
                       onClick={() => onAccredit(g)}
                       disabled={accreditingId === g.id}
-                      className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                      className={btnSmallPrimary}
                     >
                       {accreditingId === g.id ? "..." : "Accredit"}
                     </button>
                   </span>
                 )}
               </td>
-              <td className="px-4 py-2">
+              <td className="px-4 py-3">
                 {g.is_sent === 1 ? (
-                  <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                    Sent
-                  </span>
+                  <Badge tone="green">Sent</Badge>
                 ) : (
                   <button
                     onClick={() => onSendRsvp(g)}
                     disabled={sendingRsvpId === g.id}
-                    className="rounded bg-purple-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                    className="rounded-md bg-purple-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {sendingRsvpId === g.id ? "..." : "Send RSVP"}
                   </button>
                 )}
               </td>
-              <td className="px-4 py-2 text-gray-500">{new Date(g.created_at).toLocaleString()}</td>
-              <td className="px-4 py-2 text-right">
-                <button onClick={() => onEdit(g)} className="rounded border px-3 py-1 hover:bg-gray-50">
+              <td className="whitespace-nowrap px-4 py-3 text-slate-500">{new Date(g.created_at).toLocaleString()}</td>
+              <td className="px-4 py-3 text-right">
+                <button onClick={() => onEdit(g)} aria-label={`Edit ${g.first_name} ${g.last_name}`} className={btnSmallGhost}>
                   Edit
                 </button>
               </td>

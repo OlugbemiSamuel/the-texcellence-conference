@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Base: readable text on a soft neutral wash. */
+body {
+  background-color: #f1eef7;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Obvious keyboard focus everywhere: gold ring on navy-friendly outline. */
+:focus-visible {
+  outline: 2px solid #c9962e;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* QR scanner video must fill its box without stretching the layout. */
+#texcellence-qr-reader video {
+  width: 100%;
+  border-radius: 0.5rem;
+}

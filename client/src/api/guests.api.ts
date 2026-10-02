@@ -4,6 +4,15 @@ import { apiFetch } from "./client.js";
 // Learn: guests.api owns the guest endpoints used by the dashboard.
 // All calls go through apiFetch, so the Bearer token rides along.
 
+export const createGuest = async (payload: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+}): Promise<Guest> => {
+  return apiFetch<Guest>("/api/guests", { method: "POST", body: payload });
+};
+
 export const listGuests = async (): Promise<Guest[]> => {
   return apiFetch<Guest[]>("/api/guests");
 };
