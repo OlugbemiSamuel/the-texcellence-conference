@@ -1,14 +1,22 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
 // Learn: this component owns the CAMERA only. It reports a decoded string
 // once, then stops itself - it never calls the API and never accredits.
 // The parent (AccreditPage) decides what a scanned value means.
+//
+// Lifecycle is tracked EXPLICITLY because html5-qrcode throws if stop()
+// or clear() runs in the wrong state ("Cannot stop, scanner is not
+// running"). Every transition below is guarded by the current phase, so
+// permission denial, quick Stop taps, scan success, unmounts (including
+// StrictMode remounts) and races between them are all safe.
 
 interface QrScannerProps {
   onScan: (value: string) => void;
   onError: (message: string) => void;
 }
+
+type Phase = "idle" | "starting" | "running" | "stopping" | "stopped";
 
 const SCANNER_REGION_ID = "texcellence-qr-reader";
 
@@ -17,79 +25,119 @@ const describeStartError = (err: unknown): string => {
   if (name === "NotAllowedError") {
     return "Camera permission was denied. Allow camera access and try again.";
   }
-  if (name === "NotFoundError") {
-    return "No camera was found on this device.";
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return "No usable camera was found on this device.";
+  }
+  if (name === "NotReadableError") {
+    return "The camera is already in use by another app or tab.";
   }
   return "Could not start the camera. Check the device and try again.";
 };
 
 export default function QrScanner({ onScan, onError }: QrScannerProps): JSX.Element {
-  // Refs (not state): the scanner instance and "already reported" flag must
-  // survive re-renders without triggering new renders or restarts.
+  // Refs (not state): scanner instance, phase and flags must survive
+  // re-renders and async callbacks without triggering restarts.
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const phaseRef = useRef<Phase>("idle");
   const reportedRef = useRef(false);
+  const aliveRef = useRef(true);
   const callbacksRef = useRef({ onScan, onError });
   callbacksRef.current = { onScan, onError };
+  const [failed, setFailed] = useState(false);
+
+  // Safe stop: only when actually running/paused. Resolves instead of
+  // throwing when there is nothing to stop (already stopped, never
+  // started, or torn down racing us).
+  const stopSafely = async (): Promise<void> => {
+    const instance = scannerRef.current;
+    if (!instance || (phaseRef.current !== "running" && phaseRef.current !== "starting")) {
+      return;
+    }
+    phaseRef.current = "stopping";
+    try {
+      await instance.stop();
+    } catch {
+      // Not running after all (start failed midway) - nothing to stop.
+    } finally {
+      if (phaseRef.current === "stopping") phaseRef.current = "stopped";
+    }
+  };
+
+  // Safe clear: releases the video element only after a stop settled,
+  // and never throws out of cleanup.
+  const clearSafely = (): void => {
+    const instance = scannerRef.current;
+    scannerRef.current = null;
+    if (!instance) return;
+    try {
+      instance.clear();
+    } catch {
+      // Element already gone or never rendered - nothing to clean up.
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
+    aliveRef.current = true;
+    reportedRef.current = false;
+    // One instance per mount against this DOM element - never two.
     const scanner = new Html5Qrcode(SCANNER_REGION_ID);
     scannerRef.current = scanner;
+    phaseRef.current = "starting";
 
-    scanner
+    void scanner
       .start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
           // First detection wins: stop the camera, then report exactly once.
-          // The guard also swallows the rapid repeat callbacks scanners emit
-          // while a code stays in frame.
+          // The reported flag also swallows the rapid repeat callbacks
+          // scanners emit while a code stays in frame.
           if (reportedRef.current) return;
           reportedRef.current = true;
-          void scanner
-            .stop()
-            .catch(() => {
-              // Already stopped or teardown raced us; the value still counts.
-            })
-            .then(() => {
-              if (!cancelled) callbacksRef.current.onScan(decodedText);
-            });
+          void (async () => {
+            await stopSafely();
+            clearSafely();
+            if (aliveRef.current) callbacksRef.current.onScan(decodedText);
+          })();
         },
         () => {
           // Per-frame "nothing found" noise - not an error, ignore it.
         }
       )
+      .then(() => {
+        // start() resolved: the camera preview is now live.
+        if (phaseRef.current === "starting") phaseRef.current = "running";
+      })
       .catch((err: unknown) => {
-        if (!cancelled) callbacksRef.current.onError(describeStartError(err));
+        phaseRef.current = "stopped";
+        clearSafely();
+        if (aliveRef.current) {
+          setFailed(true);
+          callbacksRef.current.onError(describeStartError(err));
+        }
       });
 
     return () => {
-      cancelled = true;
-      const instance = scannerRef.current;
-      scannerRef.current = null;
-      // Best-effort shutdown: stop() rejects when already stopped, and
-      // clear() removes the video element. Neither failure matters here.
-      if (instance) {
-        void instance
-          .stop()
-          .catch(() => undefined)
-          .then(() => {
-            try {
-              instance.clear();
-            } catch {
-              // Element already gone - nothing to clean up.
-            }
-          });
-      }
+      // Unmount (incl. StrictMode remount): never leave the camera on.
+      aliveRef.current = false;
+      void (async () => {
+        await stopSafely();
+        clearSafely();
+      })();
     };
+    // Mount-only: callbacks travel via ref so effects never restart.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div id={SCANNER_REGION_ID} className="min-h-[240px] overflow-hidden rounded-lg bg-slate-900" />
+      {/* Explicit size: html5-qrcode renders its video into this box, and a
+          zero-height container is exactly the "blank area" failure mode. */}
+      <div id={SCANNER_REGION_ID} className="aspect-[4/3] max-h-[420px] min-h-[280px] w-full overflow-hidden rounded-lg bg-slate-900" />
       <p className="mt-3 text-center text-xs text-slate-500">
-        Point the camera at the guest&apos;s QR code. Scanning only identifies the guest -
-        you still press Accredit afterwards.
+        {failed
+          ? "Camera could not start - see the message above to retry."
+          : "Point the camera at the guest's QR code. Scanning only identifies the guest - you still press Verify afterwards."}
       </p>
     </div>
   );

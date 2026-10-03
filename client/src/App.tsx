@@ -8,6 +8,7 @@ import AccreditationLoginPage from "./pages/AccreditationLoginPage.js";
 import HomePage from "./pages/HomePage.js";
 import LoginPage from "./pages/LoginPage.js";
 import RegisterPage from "./pages/RegisterPage.js";
+import { readAccreditTokenFromHash, stashPendingAccreditToken, takePendingAccreditToken } from "./utils/accredit-link.js";
 
 // Hash routes (no router library, no server rewrites needed):
 // "" / "#/"            -> public conference home
@@ -16,20 +17,32 @@ import RegisterPage from "./pages/RegisterPage.js";
 // "#/dashboard"        -> admin dashboard (protected)
 // "#/accredit-login"   -> accreditation login -> #/accredit
 // "#/accredit"         -> accreditation desk (protected)
+// "#/accredit?token=x"  -> same desk, guest pre-loaded from the QR link
 type Route = "home" | "register" | "admin" | "dashboard" | "accredit-login" | "accredit";
 
 const routeFromHash = (): Route => {
   const hash = window.location.hash;
-  if (hash === "#/register") return "register";
-  if (hash === "#/admin") return "admin";
-  if (hash === "#/dashboard") return "dashboard";
-  if (hash === "#/accredit-login") return "accredit-login";
-  if (hash === "#/accredit") return "accredit";
+  const path = hash.split("?", 1)[0];
+  if (path === "#/register") return "register";
+  if (path === "#/admin") return "admin";
+  if (path === "#/dashboard") return "dashboard";
+  if (path === "#/accredit-login") return "accredit-login";
+  if (path === "#/accredit") return "accredit";
   return "home";
 };
 
 const go = (hash: string): void => {
   window.location.hash = hash;
+};
+
+// Where a fresh accreditation login should land: back on the deep-linked
+// guest when one exists, otherwise the plain desk.
+const accreditLanding = (): string => {
+  const pending = takePendingAccreditToken();
+  const current = window.location.hash;
+  if (current.startsWith("#/accredit")) return current;
+  if (pending) return `#/accredit?token=${encodeURIComponent(pending)}`;
+  return "#/accredit";
 };
 
 export default function App(): JSX.Element {
@@ -109,14 +122,14 @@ export default function App(): JSX.Element {
 
   if (route === "accredit-login") {
     if (admin) {
-      go("#/accredit");
+      go(accreditLanding());
       return <AccreditPage onAuthExpired={handleLogout} />;
     }
     return (
       <AccreditationLoginPage
         onLoggedIn={(a) => {
           setAdmin(a);
-          go("#/accredit");
+          go(accreditLanding());
         }}
       />
     );
@@ -124,13 +137,18 @@ export default function App(): JSX.Element {
 
   // Unauthenticated guards: each protected route shows its OWN login,
   // which returns staff to the page they asked for after signing in.
+  // A QR deep link keeps its token in the hash (plus a sessionStorage
+  // backup), so login lands back on the same guest - the lookup endpoint
+  // itself stays authenticated throughout.
   if (!admin) {
     if (route === "accredit") {
+      const deepToken = readAccreditTokenFromHash();
+      if (deepToken) stashPendingAccreditToken(deepToken);
       return (
         <AccreditationLoginPage
           onLoggedIn={(a) => {
             setAdmin(a);
-            go("#/accredit");
+            go(accreditLanding());
           }}
         />
       );

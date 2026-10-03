@@ -16,6 +16,7 @@ import {
   submitPublicRegistration,
   updateGuestById,
 } from "../services/guest.service.js";
+import { importGuestsFromCsv } from "../services/csv-import.service.js";
 
 export const registerGuestHandler = (
   req: Request,
@@ -121,6 +122,20 @@ export const sendRsvpHandler = async (
 ): Promise<void> => {
   try {
     res.json(await sendGuestRsvp(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const importGuestsHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    // JSON body { csv: "..." }: no multipart parser dependency needed.
+    const csv = (req.body as { csv?: unknown } | undefined)?.csv;
+    res.json(importGuestsFromCsv(csv));
   } catch (err) {
     next(err);
   }

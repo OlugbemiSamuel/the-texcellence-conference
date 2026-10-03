@@ -52,24 +52,24 @@ const readField = (body: Record<string, unknown>, field: string): unknown => {
   return body[field];
 };
 
-// Shared validators. registerGuest and updateGuestById both use these,
-// so the rules live in ONE place and cannot drift apart.
+// Shared validators. registerGuest, updateGuestById and the CSV import
+// all use these, so the rules live in ONE place and cannot drift apart.
 
-const normalizeFirstName = (raw: unknown): string => {
+export const normalizeFirstName = (raw: unknown): string => {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new ValidationError("first_name is required");
   }
   return raw.trim();
 };
 
-const normalizeLastName = (raw: unknown): string => {
+export const normalizeLastName = (raw: unknown): string => {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new ValidationError("last_name is required");
   }
   return raw.trim();
 };
 
-const normalizeEmail = (raw: unknown): string => {
+export const normalizeEmail = (raw: unknown): string => {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new ValidationError("email is required");
   }
@@ -80,7 +80,7 @@ const normalizeEmail = (raw: unknown): string => {
   return email;
 };
 
-const normalizePhone = (raw: unknown): string | null => {
+export const normalizePhone = (raw: unknown): string | null => {
   if (raw === undefined || raw === null) return null;
   if (typeof raw !== "string") {
     throw new ValidationError("phone must be a string");
@@ -88,7 +88,7 @@ const normalizePhone = (raw: unknown): string | null => {
   return raw.trim() === "" ? null : raw.trim();
 };
 
-const normalizeAttendance = (raw: unknown): AttendanceStatus => {
+export const normalizeAttendance = (raw: unknown): AttendanceStatus => {
   if (typeof raw !== "string" || !ATTENDANCE_VALUES.includes(raw as AttendanceStatus)) {
     throw new ValidationError("attendance_status must be one of: pending, yes, no");
   }

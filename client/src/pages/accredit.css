@@ -1,0 +1,113 @@
+/* Accreditation desk theme: recreates the reference check-in interface.
+   Teal primary, light-grey canvas, white cards, vertical scanner rails.
+   Scoped with the `acc-` prefix so the admin dashboard theme is untouched. */
+
+.acc-canvas {
+  background-color: #f1f2f6;
+}
+
+.acc-card {
+  background: #fff;
+  border: 1px solid #e6e8ee;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  overflow: hidden;
+}
+
+.acc-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e6e8ee;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3f4756;
+}
+
+.acc-scanner-idle {
+  border: 2px dashed #d4d8e0;
+  border-radius: 12px;
+  background: #fafbfc;
+}
+
+.acc-rail {
+  writing-mode: vertical-rl;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: #6b7280;
+  user-select: none;
+}
+
+.acc-rail-left {
+  transform: rotate(180deg);
+}
+
+.acc-camera-btn {
+  width: 96px;
+  height: 96px;
+  border-radius: 28px;
+  background: #10b981;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 10px rgba(16, 185, 129, 0.15), 0 8px 20px rgba(16, 185, 129, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.acc-camera-btn:hover {
+  transform: scale(1.04);
+}
+
+.acc-verify-btn {
+  background: #10b981;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 12px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.acc-verify-btn:hover {
+  background: #0da271;
+}
+
+.acc-verify-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.acc-search-input {
+  border: 1px solid #dfe2ea;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.acc-search-input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+  outline: none;
+}
+
+.acc-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: #10b981;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.acc-tab-active {
+  color: #10b981;
+}
+
+.acc-tab-idle {
+  color: #9aa0ae;
+}

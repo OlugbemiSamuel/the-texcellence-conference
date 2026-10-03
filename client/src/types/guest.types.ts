@@ -30,3 +30,17 @@ export interface UpdateGuestPayload {
   phone?: string | null;
   attendance_status?: AttendanceStatus;
 }
+
+export interface CsvImportRowError {
+  row: number;
+  email: string;
+  message: string;
+}
+
+export interface CsvImportResult {
+  processed: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: CsvImportRowError[];
+}

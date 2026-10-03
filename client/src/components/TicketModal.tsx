@@ -1,10 +1,11 @@
 import { QRCodeSVG } from "qrcode.react";
 import type { Guest } from "../types/guest.types.js";
+import { buildAccreditUrl } from "../utils/accredit-link.js";
 import { Badge, btnPrimary } from "./ui.js";
 
 // Learn: a conference ticket on screen. Guest identity + ticket number
-// for humans, QR for the future scanner. The QR encodes ONLY qr_token
-// (an opaque random string) - never email, password, JWT, or the guest id.
+// for humans, QR for the scanner. The QR encodes an accreditation URL
+// carrying ONLY the opaque qr_token - never email, password, or JWT.
 
 interface TicketModalProps {
   guest: Guest;
@@ -30,7 +31,7 @@ export default function TicketModal({ guest, onClose }: TicketModalProps): JSX.E
           <p className="text-2xl font-extrabold tracking-wide text-brand-navy">{guest.ticket_number}</p>
           {guest.qr_token && (
             <div className="mx-auto mt-4 w-fit rounded-xl border-2 border-brand-gold/60 bg-white p-3">
-              <QRCodeSVG value={guest.qr_token} size={180} role="img" aria-label={`QR code for ticket ${guest.ticket_number}`} />
+              <QRCodeSVG value={buildAccreditUrl(guest.qr_token)} size={180} role="img" aria-label={`QR code for ticket ${guest.ticket_number}`} />
             </div>
           )}
           <div className="mt-4 text-sm">

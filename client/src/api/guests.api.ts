@@ -1,4 +1,4 @@
-import type { Guest, UpdateGuestPayload } from "../types/guest.types.js";
+import type { CsvImportResult, Guest, UpdateGuestPayload } from "../types/guest.types.js";
 import { apiFetch } from "./client.js";
 
 // Learn: guests.api owns the guest endpoints used by the dashboard.
@@ -45,5 +45,12 @@ export const updateGuest = async (id: number, patch: UpdateGuestPayload): Promis
   return apiFetch<Guest>(`/api/guests/${id}`, {
     method: "PATCH",
     body: patch,
+  });
+};
+
+export const importGuestsCsv = async (csv: string): Promise<CsvImportResult> => {
+  return apiFetch<CsvImportResult>("/api/guests/import", {
+    method: "POST",
+    body: { csv },
   });
 };

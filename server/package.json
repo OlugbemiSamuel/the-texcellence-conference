@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "db:verify": "tsx src/scripts/verify-db.ts",
-    "email:verify": "tsx src/scripts/verify-email.ts"
+    "email:verify": "tsx src/scripts/verify-email.ts",
+    "csv:verify": "tsx src/scripts/verify-csv-import.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

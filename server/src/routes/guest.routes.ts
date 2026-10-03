@@ -4,6 +4,7 @@ import {
   generateTicketHandler,
   getGuestByIdHandler,
   getGuestByQrTokenHandler,
+  importGuestsHandler,
   listGuestsHandler,
   registerGuestHandler,
   searchGuestsHandler,
@@ -28,7 +29,8 @@ guestRouter.get("/search", requireAuth, searchGuestsHandler);
 guestRouter.get("/qr/:token", requireAuth, getGuestByQrTokenHandler);
 guestRouter.get("/:id", getGuestByIdHandler);
 guestRouter.patch("/:id", updateGuestByIdHandler);
-// Accreditation + tickets + RSVP are staff-only: requireAuth stands guard.
+// Accreditation + tickets + RSVP + CSV import are staff-only.
 guestRouter.post("/:id/accredit", requireAuth, accreditGuestHandler);
 guestRouter.post("/:id/ticket", requireAuth, generateTicketHandler);
 guestRouter.post("/:id/rsvp", requireAuth, sendRsvpHandler);
+guestRouter.post("/import", requireAuth, importGuestsHandler);
