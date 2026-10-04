@@ -11,5 +11,9 @@ dist/
 
 server/data/
 
+
+*.tsbuildinfo
+*.zip
+backend-upload/
 README.md
 AGENTS.md
