@@ -1,10 +1,12 @@
+// Public landing page: conference presentation + the way in.
+// Brand art loads from /brand/flyer.jpg when provided; the layout stays
+// complete with the text lockup if the file is absent.
+
 import { useState } from "react";
 
-// Public landing page: conference presentation + the way in.
-// Brand art loads from /brand/flyer.jpg when provided (see note below);
-// the page stays complete with the text lockup if the file is absent.
-
 const FLYER_SRC = "/brand/flyer.jpg";
+
+const iconCls = "h-4 w-4 shrink-0 text-brand-gold";
 
 export default function HomePage(): JSX.Element {
   const [flyerVisible, setFlyerVisible] = useState(true);
@@ -12,66 +14,71 @@ export default function HomePage(): JSX.Element {
   return (
     <main className="min-h-screen bg-brand-mist">
       <div className="bg-brand-navy text-white">
-        <div className="mx-auto max-w-4xl px-4 pb-10 pt-10 text-center sm:px-6">
+        <div className="mx-auto max-w-2xl px-4 pb-6 pt-8 text-center sm:px-6">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-gold">
             The TeXcellence Conference
           </p>
-          <h1 className="mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">
+          <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">
             Accelerating Africa&apos;s Digital Future
           </h1>
-          <p className="mt-4 text-sm text-slate-200 sm:text-base">
-            Tuesday, 13 October 2026 &nbsp;|&nbsp; Landmark Event Centre
-          </p>
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <a
-              href="#/register"
-              className="rounded-xl bg-brand-gold px-8 py-3.5 text-base font-bold text-brand-deep shadow transition hover:brightness-95"
-            >
-              Register to attend
-            </a>
+          <div className="mt-3 flex flex-col items-center gap-1.5 text-sm text-slate-200 sm:text-base">
+            <p className="flex items-center gap-1.5">
+              <svg
+                className={iconCls}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+              <span>
+                <strong className="font-semibold text-white">Date:</strong>{" "}
+                Tuesday, 13 October 2026
+              </span>
+            </p>
+            <p className="flex items-center gap-1.5">
+              <svg
+                className={iconCls}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <span>
+                <strong className="font-semibold text-white">Location:</strong>{" "}
+                Landmark Event Centre
+              </span>
+            </p>
           </div>
         </div>
       </div>
 
-      <section className="mx-auto max-w-4xl space-y-6 px-4 py-10 sm:px-6">
+      <section className="mx-auto w-full max-w-2xl px-4 pb-12 sm:px-6">
         {flyerVisible && (
           <img
             src={FLYER_SRC}
             alt="The Texcellence Conference official flyer"
             onError={() => setFlyerVisible(false)}
-            className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 shadow-lg"
+            className="-mt-2 w-full rounded-2xl border border-slate-200 shadow-lg"
           />
         )}
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="font-bold text-slate-900">Attend</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Tell us you&apos;re coming in under a minute.
-            </p>
-            <a href="#/register" className="mt-3 inline-block text-sm font-semibold text-brand-navy underline">
-              Go to registration
-            </a>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="font-bold text-slate-900">Event team</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Manage guests, tickets and RSVP emails.
-            </p>
-            <a href="#/admin" className="mt-3 inline-block text-sm font-semibold text-brand-navy underline">
-              Admin sign in
-            </a>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="font-bold text-slate-900">Door staff</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Search or scan QR codes to accredit guests.
-            </p>
-            <a href="#/accredit-login" className="mt-3 inline-block text-sm font-semibold text-brand-navy underline">
-              Accreditation sign in
-            </a>
-          </div>
-        </div>
+        <a
+          href="#/register"
+          className="mt-6 block w-full animate-pulse rounded-xl bg-brand-gold px-6 py-4 text-center text-base font-bold text-brand-deep shadow-lg transition hover:brightness-95 sm:mx-auto sm:w-auto sm:min-w-[320px] sm:text-lg"
+        >
+          Register to attend - save your seat
+        </a>
       </section>
     </main>
   );
