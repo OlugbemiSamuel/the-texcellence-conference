@@ -14,6 +14,7 @@ interface AccreditationLoginPageProps {
 export default function AccreditationLoginPage({ onLoggedIn }: AccreditationLoginPageProps): JSX.Element {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,14 +76,25 @@ export default function AccreditationLoginPage({ onLoggedIn }: AccreditationLogi
             <label htmlFor="acc-password" className="block text-sm font-semibold text-slate-700">
               Password
             </label>
-            <input
-              id="acc-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="acc-search-input mt-1 w-full px-3 py-2.5 text-[15px]"
-            />
+            <div className="relative">
+              <input
+                id="acc-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="acc-search-input mt-1 w-full px-3 py-2.5 pr-16 text-[15px]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 px-3 text-sm font-semibold text-emerald-600"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
           {error && (
             <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">

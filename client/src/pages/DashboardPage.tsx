@@ -684,7 +684,7 @@ export default function DashboardPage({
       </main>
 
       {ticketGuest && (
-        <TicketModal guest={ticketGuest} onClose={() => setTicketGuest(null)} />
+        <TicketModal guest={ticketGuest} onClose={() => setTicketGuest(null)} onAuthExpired={onAuthExpired} />
       )}
 
       {importOpen && (

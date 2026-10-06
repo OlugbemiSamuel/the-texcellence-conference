@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import type { Guest } from "../types/guest.types.js";
+import { sendTicketEmail } from "../api/guests.api.js";
+import { ApiError, getErrorMessage } from "../api/client.js";
 import { buildAccreditUrl } from "../utils/accredit-link.js";
-import { Badge, btnPrimary } from "./ui.js";
+import { Badge, btnPrimary, btnSecondary } from "./ui.js";
 
 // Learn: a conference ticket on screen. Guest identity + ticket number
 // for humans, QR for the scanner. The QR encodes an accreditation URL
@@ -10,9 +13,31 @@ import { Badge, btnPrimary } from "./ui.js";
 interface TicketModalProps {
   guest: Guest;
   onClose: () => void;
+  onAuthExpired: () => void;
 }
 
-export default function TicketModal({ guest, onClose }: TicketModalProps): JSX.Element {
+export default function TicketModal({ guest, onClose, onAuthExpired }: TicketModalProps): JSX.Element {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleEmailTicket = async (): Promise<void> => {
+    if (sending || sent) return;
+    setSending(true);
+    setError(null);
+    try {
+      await sendTicketEmail(guest.id);
+      setSent(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onAuthExpired();
+        return;
+      }
+      setError(getErrorMessage(err));
+    } finally {
+      setSending(false);
+    }
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-brand-deep/60 p-4">
       <section aria-labelledby="ticket-heading" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl">
@@ -44,7 +69,13 @@ export default function TicketModal({ guest, onClose }: TicketModalProps): JSX.E
               <p className="text-slate-500">Not Accredited</p>
             )}
           </div>
-          <button onClick={onClose} className={`${btnPrimary} mt-5 w-full py-3`}>
+          <button onClick={handleEmailTicket} disabled={sending || sent} className={`${btnSecondary} mt-3 w-full py-3`}>
+            {sent ? "Ticket emailed ✓" : sending ? "Emailing ticket..." : "Email ticket to guest"}
+          </button>
+          {error && (
+            <p role="alert" className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          )}
+          <button onClick={onClose} className={`${btnPrimary} mt-3 w-full py-3`}>
             Close
           </button>
         </div>

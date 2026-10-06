@@ -9,6 +9,7 @@ import {
   registerGuestHandler,
   searchGuestsHandler,
   sendRsvpHandler,
+  sendTicketEmailHandler,
   updateGuestByIdHandler,
 } from "../controllers/guest.controller.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -33,4 +34,5 @@ guestRouter.patch("/:id", updateGuestByIdHandler);
 guestRouter.post("/:id/accredit", requireAuth, accreditGuestHandler);
 guestRouter.post("/:id/ticket", requireAuth, generateTicketHandler);
 guestRouter.post("/:id/rsvp", requireAuth, sendRsvpHandler);
+guestRouter.post("/:id/ticket-email", requireAuth, sendTicketEmailHandler);
 guestRouter.post("/import", requireAuth, importGuestsHandler);

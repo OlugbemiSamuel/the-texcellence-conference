@@ -24,7 +24,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "../errors/http.error.js";
-import { sendRsvpEmail } from "./email.service.js";
+import { sendRsvpEmail, sendTicketEmail } from "./email.service.js";
 import type { Transporter } from "nodemailer";
 
 // Learn: service = the supervisor. It never touches the register book (SQL)
@@ -285,6 +285,27 @@ export const sendGuestRsvp = async (
     throw new NotFoundError();
   }
   return updated;
+};
+
+// Ticket email: ensures credentials exist first (idempotent), then mails
+// the QR. Does NOT touch is_sent (that's RSVP-only).
+export const sendGuestTicketEmail = async (
+  rawId: unknown,
+  transporter?: Transporter
+): Promise<Guest> => {
+  const id = parseGuestId(rawId);
+  let guest = findGuestById(id);
+  if (!guest) {
+    throw new NotFoundError();
+  }
+  if (!guest.ticket_number || !guest.qr_token) {
+    guest = generateTicketCredentials(id);
+    if (!guest) {
+      throw new NotFoundError();
+    }
+  }
+  await sendTicketEmail(guest, transporter);
+  return guest;
 };
 
 export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest => {

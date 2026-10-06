@@ -13,6 +13,7 @@ import {
   registerGuest,
   searchGuests,
   sendGuestRsvp,
+  sendGuestTicketEmail,
   submitPublicRegistration,
   updateGuestById,
 } from "../services/guest.service.js";
@@ -122,6 +123,18 @@ export const sendRsvpHandler = async (
 ): Promise<void> => {
   try {
     res.json(await sendGuestRsvp(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const sendTicketEmailHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    res.json(await sendGuestTicketEmail(req.params.id));
   } catch (err) {
     next(err);
   }

@@ -16,6 +16,7 @@ interface LoginPageProps {
 export default function LoginPage({ onLoggedIn, heading = "Admin sign in", subheading = "Manage guests, tickets and accreditation." }: LoginPageProps): JSX.Element {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,14 +67,25 @@ export default function LoginPage({ onLoggedIn, heading = "Admin sign in", subhe
             <label htmlFor="password" className="block text-sm font-medium text-slate-700">
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputCls}
-            />
+            <div className="relative mt-1">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`${inputCls} mt-0 pr-12`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 px-3 text-sm font-medium text-brand-navy"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
           {error && <p role="alert" className={alertErrorCls}>{error}</p>}
           <button type="submit" disabled={!canSubmit} className={`${btnPrimary} w-full py-3`}>

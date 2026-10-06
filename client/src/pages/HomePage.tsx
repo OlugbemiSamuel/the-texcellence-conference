@@ -22,7 +22,7 @@ export default function HomePage(): JSX.Element {
             Accelerating Africa&apos;s Digital Future
           </h1>
           <div className="mt-3 flex flex-col items-center gap-1.5 text-sm text-slate-200 sm:text-base">
-            <p className="flex items-center gap-1.5">
+            <p className="flex items-center gap-1.5 whitespace-nowrap">
               <svg
                 className={iconCls}
                 viewBox="0 0 24 24"
@@ -41,7 +41,7 @@ export default function HomePage(): JSX.Element {
                 Tuesday, 13 October 2026
               </span>
             </p>
-            <p className="flex items-center gap-1.5">
+            <p className="flex items-center gap-1.5 whitespace-nowrap">
               <svg
                 className={iconCls}
                 viewBox="0 0 24 24"
@@ -64,13 +64,13 @@ export default function HomePage(): JSX.Element {
         </div>
       </div>
 
-      <section className="mx-auto w-full max-w-2xl px-4 pb-12 sm:px-6">
+      <section className="mx-auto w-full max-w-2xl px-4 pb-8 pt-4 sm:px-6">
         {flyerVisible && (
           <img
             src={FLYER_SRC}
             alt="The Texcellence Conference official flyer"
             onError={() => setFlyerVisible(false)}
-            className="-mt-2 w-full rounded-2xl border border-slate-200 shadow-lg"
+            className="w-full rounded-2xl border border-slate-200 shadow-lg"
           />
         )}
         <a
