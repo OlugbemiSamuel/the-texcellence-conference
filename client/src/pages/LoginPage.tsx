@@ -13,7 +13,11 @@ interface LoginPageProps {
   subheading?: string;
 }
 
-export default function LoginPage({ onLoggedIn, heading = "Admin sign in", subheading = "Manage guests, tickets and accreditation." }: LoginPageProps): JSX.Element {
+export default function LoginPage({
+  onLoggedIn,
+  heading = "Admin sign in",
+  subheading = "Manage guests, tickets and accreditation.",
+}: LoginPageProps): JSX.Element {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -43,15 +47,26 @@ export default function LoginPage({ onLoggedIn, heading = "Admin sign in", subhe
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-brand-navy p-4">
-      <section className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl" aria-labelledby="login-heading">
+      <section
+        className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl"
+        aria-labelledby="login-heading"
+      >
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-gold">
           The TeXcellence Conference
         </p>
-        <h1 id="login-heading" className="mt-2 text-2xl font-extrabold text-slate-900">{heading}</h1>
+        <h1
+          id="login-heading"
+          className="mt-2 text-2xl font-extrabold text-slate-900"
+        >
+          {heading}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">{subheading}</p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-slate-700"
+            >
               Email
             </label>
             <input
@@ -64,7 +79,10 @@ export default function LoginPage({ onLoggedIn, heading = "Admin sign in", subhe
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-slate-700"
+            >
               Password
             </label>
             <div className="relative mt-1">
@@ -87,13 +105,18 @@ export default function LoginPage({ onLoggedIn, heading = "Admin sign in", subhe
               </button>
             </div>
           </div>
-          {error && <p role="alert" className={alertErrorCls}>{error}</p>}
-          <button type="submit" disabled={!canSubmit} className={`${btnPrimary} w-full py-3`}>
+          {error && (
+            <p role="alert" className={alertErrorCls}>
+              {error}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className={`${btnPrimary} w-full py-3`}
+          >
             {loading ? "Signing in..." : "Sign in"}
           </button>
-          <a href="/" className="block py-2 text-center text-sm font-medium text-brand-navy underline">
-            Back to public site
-          </a>
         </form>
       </section>
     </main>
