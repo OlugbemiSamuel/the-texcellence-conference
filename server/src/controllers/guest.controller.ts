@@ -156,13 +156,13 @@ export const importGuestsHandler = (
 
 // Public registration: 201 for a brand-new guest, 200 when an existing
 // email re-registers (record updated, no duplicate created).
-export const submitRegistrationHandler = (
+export const submitRegistrationHandler = async (
   req: Request,
   res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   try {
-    const { guest, created } = submitPublicRegistration(
+    const { guest, created } = await submitPublicRegistration(
       req.body as PublicRegistrationBody
     );
     res.status(created ? 201 : 200).json(guest);

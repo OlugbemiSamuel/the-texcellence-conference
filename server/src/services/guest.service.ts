@@ -171,9 +171,9 @@ export const searchGuests = (rawQuery: unknown): Guest[] => {
 // New email -> 201 with a fresh guest. Known email -> 200 updating ONLY
 // the 5 registration fields, so ticket_number, qr_token and accredited_at
 // survive untouched (persistGuestUpdate cannot write those columns).
-export const submitPublicRegistration = (
+export const submitPublicRegistration = async (
   body: PublicRegistrationBody
-): { guest: Guest; created: boolean } => {
+): Promise<{ guest: Guest; created: boolean }> => {
   const record = body as Record<string, unknown>;
   const first_name = normalizeFirstName(readField(record, "first_name"));
   const last_name = normalizeLastName(readField(record, "last_name"));
@@ -193,6 +193,18 @@ export const submitPublicRegistration = (
   }
 
   const existing = findGuestByEmail(email);
+  // After persistence, the guest gets their ticket + QR by email so the
+  // "check your email" message is true. Sending is best-effort: mail
+  // failure is logged but never fails the registration itself.
+  const mailTicket = async (guest: Guest): Promise<Guest> => {
+    const ticketed = generateTicketCredentials(guest.id) ?? guest;
+    try {
+      await sendTicketEmail(ticketed);
+    } catch (err) {
+      console.error(`Registration email failed for guest ${guest.id}:`, (err as Error).message);
+    }
+    return ticketed;
+  };
   if (existing) {
     const updated = persistGuestUpdate(existing.id, {
       first_name,
@@ -203,14 +215,12 @@ export const submitPublicRegistration = (
     });
     // We just found it, so it must still be there; guard is for TypeScript.
     if (!updated) throw new NotFoundError();
-    return { guest: updated, created: false };
+    return { guest: await mailTicket(updated), created: false };
   }
 
   try {
-    return {
-      guest: createGuest({ first_name, last_name, email, phone, attendance_status }),
-      created: true,
-    };
+    const created = createGuest({ first_name, last_name, email, phone, attendance_status });
+    return { guest: await mailTicket(created), created: true };
   } catch (err) {
     if (!(err instanceof Error && err.message.includes("UNIQUE"))) throw err;
     // Race: someone registered this email a split second ago.
@@ -225,7 +235,7 @@ export const submitPublicRegistration = (
       attendance_status,
     });
     if (!updated) throw new NotFoundError();
-    return { guest: updated, created: false };
+    return { guest: await mailTicket(updated), created: false };
   }
 };
 

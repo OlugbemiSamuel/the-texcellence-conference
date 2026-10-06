@@ -104,7 +104,7 @@ export default function AccreditationLoginPage({ onLoggedIn }: AccreditationLogi
           <button type="submit" disabled={!canSubmit} className="acc-verify-btn w-full py-3 text-[15px]">
             {loading ? "Signing in..." : "Sign in"}
           </button>
-          <a href="#/" className="block py-2 text-center text-sm font-semibold text-slate-500 underline">
+          <a href="/" className="block py-2 text-center text-sm font-semibold text-slate-500 underline">
             Back to public site
           </a>
         </form>

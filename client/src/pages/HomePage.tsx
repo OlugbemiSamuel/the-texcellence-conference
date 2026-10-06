@@ -74,7 +74,7 @@ export default function HomePage(): JSX.Element {
           />
         )}
         <a
-          href="#/register"
+          href="/register"
           className="mt-6 block w-full animate-pulse rounded-xl bg-brand-gold px-6 py-4 text-center text-base font-bold text-brand-deep shadow-lg transition hover:brightness-95 sm:mx-auto sm:w-auto sm:min-w-[320px] sm:text-lg"
         >
           Register to attend - save your seat

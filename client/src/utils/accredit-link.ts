@@ -1,22 +1,23 @@
 // Accreditation deep-link helpers. Ticket QR codes encode a URL like
-// <origin>/#/accredit?token=<qr-token> so a normal phone camera opens the
+// <origin>/accredit?token=<qr-token> so a normal phone camera opens the
 // accreditation desk instead of searching the raw token text.
 // The token itself stays opaque: it is only ever an identifier.
+
+// import type { Guest } from "../types/guest.types.js";
 
 const PENDING_TOKEN_KEY = "texcellence.pendingAccreditToken";
 
 const QR_TOKEN_PATTERN = /^[0-9a-f]{64}$/i;
 
-// Browser's own origin + path, so one build works on localhost and in
-// production with no hard-coded domain. Trailing slash normalised so the
-// link never gains a double slash.
+// Browser's own origin, so one build works on localhost and in
+// production with no hard-coded domain.
 export const buildAccreditUrl = (qrToken: string): string => {
-  const base = `${window.location.origin}${window.location.pathname.replace(/\/?$/, "/")}`;
-  return `${base}#/accredit?token=${encodeURIComponent(qrToken)}`;
+  const base = window.location.origin;
+  return `${base}/accredit?token=${encodeURIComponent(qrToken)}`;
 };
 
-// Accepts either the new deep-link URL or a legacy raw token (older
-// printed tickets still scan fine). Returns "" when nothing usable.
+// Accepts either the new deep-link URL, a legacy "#/accredit?token=" URL
+// from older printed tickets, or a raw token. Returns "" when unusable.
 export const extractQrToken = (value: string): string => {
   const text = value.trim();
   if (text === "") return "";
@@ -37,12 +38,9 @@ export const isPlausibleQrToken = (token: string): boolean => {
   return QR_TOKEN_PATTERN.test(token);
 };
 
-// Reads ?token= from the current "#/accredit?token=..." hash.
-export const readAccreditTokenFromHash = (): string => {
-  const hash = window.location.hash;
-  const qIndex = hash.indexOf("?");
-  if (qIndex < 0) return "";
-  const params = new URLSearchParams(hash.slice(qIndex + 1));
+// Reads ?token= from the current "/accredit?token=..." location.
+export const readAccreditTokenFromLocation = (): string => {
+  const params = new URLSearchParams(window.location.search);
   return (params.get("token") ?? "").trim();
 };
 

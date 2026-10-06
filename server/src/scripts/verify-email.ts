@@ -64,8 +64,8 @@ const run = async (): Promise<void> => {
   check("body has theme", content.text.includes("Accelerating Africa's Digital Future"));
   check("body has date", content.text.includes("13 October 2026"));
   check("body has venue", content.text.includes("Landmark Event Centre"));
-  check("link has no double slash", registrationUrl() === "http://localhost:5173/#/register");
-  check("body has link", content.text.includes("http://localhost:5173/#/register"));
+  check("link has no double slash", registrationUrl() === "http://localhost:5173/register");
+  check("body has link", content.text.includes("http://localhost:5173/register"));
 
   // Success through the real service: mail accepted -> is_sent becomes 1.
   const mailed = await sendGuestRsvp(guest.id, workingTransporter);

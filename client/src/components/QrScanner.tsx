@@ -87,7 +87,8 @@ export default function QrScanner({ onScan, onError }: QrScannerProps): JSX.Elem
     void scanner
       .start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        // Large viewfinder so a full ticket QR fits on phones and laptops.
+        { fps: 10, qrbox: { width: 300, height: 300 } },
         (decodedText) => {
           // First detection wins: stop the camera, then report exactly once.
           // The reported flag also swallows the rapid repeat callbacks
@@ -133,7 +134,7 @@ export default function QrScanner({ onScan, onError }: QrScannerProps): JSX.Elem
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       {/* Explicit size: html5-qrcode renders its video into this box, and a
           zero-height container is exactly the "blank area" failure mode. */}
-      <div id={SCANNER_REGION_ID} className="aspect-[4/3] max-h-[420px] min-h-[280px] w-full overflow-hidden rounded-lg bg-slate-900" />
+      <div id={SCANNER_REGION_ID} className="aspect-square max-h-[480px] min-h-[320px] w-full overflow-hidden rounded-lg bg-slate-900" />
       <p className="mt-3 text-center text-xs text-slate-500">
         {failed
           ? "Camera could not start - see the message above to retry."

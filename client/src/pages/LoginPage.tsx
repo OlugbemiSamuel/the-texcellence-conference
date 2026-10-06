@@ -91,7 +91,7 @@ export default function LoginPage({ onLoggedIn, heading = "Admin sign in", subhe
           <button type="submit" disabled={!canSubmit} className={`${btnPrimary} w-full py-3`}>
             {loading ? "Signing in..." : "Sign in"}
           </button>
-          <a href="#/" className="block py-2 text-center text-sm font-medium text-brand-navy underline">
+          <a href="/" className="block py-2 text-center text-sm font-medium text-brand-navy underline">
             Back to public site
           </a>
         </form>

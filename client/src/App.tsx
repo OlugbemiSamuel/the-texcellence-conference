@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, clearToken, getToken } from "./api/client.js";
 import { getMe } from "./api/auth.api.js";
 import type { AuthAdmin } from "./types/auth.types.js";
@@ -8,62 +9,71 @@ import AccreditationLoginPage from "./pages/AccreditationLoginPage.js";
 import HomePage from "./pages/HomePage.js";
 import LoginPage from "./pages/LoginPage.js";
 import RegisterPage from "./pages/RegisterPage.js";
-import { readAccreditTokenFromHash, stashPendingAccreditToken, takePendingAccreditToken } from "./utils/accredit-link.js";
+import { takePendingAccreditToken } from "./utils/accredit-link.js";
 
-// Hash routes (no router library, no server rewrites needed):
-// "" / "#/"            -> public conference home
-// "#/register"         -> public registration (no login)
-// "#/admin"            -> admin login -> #/dashboard
-// "#/dashboard"        -> admin dashboard (protected)
-// "#/accredit-login"   -> accreditation login -> #/accredit
-// "#/accredit"         -> accreditation desk (protected)
-// "#/accredit?token=x"  -> same desk, guest pre-loaded from the QR link
-type Route = "home" | "register" | "admin" | "dashboard" | "accredit-login" | "accredit";
-
-const routeFromHash = (): Route => {
-  const hash = window.location.hash;
-  const path = hash.split("?", 1)[0];
-  if (path === "#/register") return "register";
-  if (path === "#/admin") return "admin";
-  if (path === "#/dashboard") return "dashboard";
-  if (path === "#/accredit-login") return "accredit-login";
-  if (path === "#/accredit") return "accredit";
-  return "home";
-};
-
-const go = (hash: string): void => {
-  window.location.hash = hash;
-};
+// Plain-path routes (the server rewrites non-/api paths to index.html):
+// "/"                 -> public conference home
+// "/register"         -> public registration (no login)
+// "/admin"            -> admin login -> /dashboard
+// "/dashboard"        -> admin dashboard (protected)
+// "/accredit-login"   -> accreditation login -> /accredit
+// "/accredit"         -> accreditation desk (protected)
+// "/accredit?token=x" -> same desk, guest pre-loaded from the QR link
 
 // Where a fresh accreditation login should land: back on the deep-linked
 // guest when one exists, otherwise the plain desk.
 const accreditLanding = (): string => {
   const pending = takePendingAccreditToken();
-  const current = window.location.hash;
-  if (current.startsWith("#/accredit")) return current;
-  if (pending) return `#/accredit?token=${encodeURIComponent(pending)}`;
-  return "#/accredit";
+  if (window.location.pathname === "/accredit" && window.location.search) {
+    return window.location.pathname + window.location.search;
+  }
+  if (pending) return `/accredit?token=${encodeURIComponent(pending)}`;
+  return "/accredit";
 };
 
-export default function App(): JSX.Element {
+function AdminLogin({ onLoggedIn }: { onLoggedIn: (a: AuthAdmin) => void }): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <LoginPage
+      onLoggedIn={(a) => {
+        onLoggedIn(a);
+        navigate("/dashboard");
+      }}
+    />
+  );
+}
+
+function AccreditLogin({ onLoggedIn }: { onLoggedIn: (a: AuthAdmin) => void }): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <AccreditationLoginPage
+      onLoggedIn={(a) => {
+        onLoggedIn(a);
+        navigate(accreditLanding());
+      }}
+    />
+  );
+}
+
+function Shell(): JSX.Element {
   const [admin, setAdmin] = useState<AuthAdmin | null>(null);
   const [checking, setChecking] = useState(true);
-  const [route, setRoute] = useState<Route>(routeFromHash());
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Stable callbacks so page load-effects run exactly once.
-  const handleLogout = useCallback((): void => {
+  // Each workflow returns to ITS OWN sign-in screen, never the homepage.
+  const handleAdminLogout = useCallback((): void => {
     clearToken();
     setAdmin(null);
-    go("#/");
-  }, []);
+    navigate("/admin");
+  }, [navigate]);
 
-  useEffect(() => {
-    const onHashChange = (): void => {
-      setRoute(routeFromHash());
-    };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
+  const handleAccreditExpired = useCallback((): void => {
+    clearToken();
+    setAdmin(null);
+    navigate("/accredit-login");
+  }, [navigate]);
 
   useEffect(() => {
     const boot = async (): Promise<void> => {
@@ -87,6 +97,12 @@ export default function App(): JSX.Element {
     void boot();
   }, []);
 
+  // Scroll to top on page changes (hash routing used to do this free).
+  const scrollKey = location.pathname;
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [scrollKey]);
+
   if (checking) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-brand-mist">
@@ -95,77 +111,47 @@ export default function App(): JSX.Element {
     );
   }
 
-  if (route === "register") {
-    return <RegisterPage />;
-  }
-
-  if (route === "home") {
-    return <HomePage />;
-  }
-
-  // Protected routes render their login screen when unauthenticated -
-  // equivalent to a redirect, with no loop risk.
-  if (route === "admin") {
-    if (admin) {
-      go("#/dashboard");
-      return <DashboardPage admin={admin} onLogout={handleLogout} onAuthExpired={handleLogout} />;
-    }
-    return (
-      <LoginPage
-        onLoggedIn={(a) => {
-          setAdmin(a);
-          go("#/dashboard");
-        }}
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/admin"
+        element={admin ? <Navigate to="/dashboard" replace /> : <AdminLogin onLoggedIn={setAdmin} />}
       />
-    );
-  }
-
-  if (route === "accredit-login") {
-    if (admin) {
-      go(accreditLanding());
-      return <AccreditPage onAuthExpired={handleLogout} />;
-    }
-    return (
-      <AccreditationLoginPage
-        onLoggedIn={(a) => {
-          setAdmin(a);
-          go(accreditLanding());
-        }}
+      <Route
+        path="/dashboard"
+        element={
+          admin ? (
+            <DashboardPage admin={admin} onLogout={handleAdminLogout} onAuthExpired={handleAdminLogout} />
+          ) : (
+            <Navigate to="/admin" replace />
+          )
+        }
       />
-    );
-  }
-
-  // Unauthenticated guards: each protected route shows its OWN login,
-  // which returns staff to the page they asked for after signing in.
-  // A QR deep link keeps its token in the hash (plus a sessionStorage
-  // backup), so login lands back on the same guest - the lookup endpoint
-  // itself stays authenticated throughout.
-  if (!admin) {
-    if (route === "accredit") {
-      const deepToken = readAccreditTokenFromHash();
-      if (deepToken) stashPendingAccreditToken(deepToken);
-      return (
-        <AccreditationLoginPage
-          onLoggedIn={(a) => {
-            setAdmin(a);
-            go(accreditLanding());
-          }}
-        />
-      );
-    }
-    return (
-      <LoginPage
-        onLoggedIn={(a) => {
-          setAdmin(a);
-          go("#/dashboard");
-        }}
+      <Route
+        path="/accredit-login"
+        element={admin ? <Navigate to={accreditLanding()} replace /> : <AccreditLogin onLoggedIn={setAdmin} />}
       />
-    );
-  }
+      <Route
+        path="/accredit"
+        element={
+          admin ? (
+            <AccreditPage onAuthExpired={handleAccreditExpired} />
+          ) : (
+            <AccreditLogin onLoggedIn={setAdmin} />
+          )
+        }
+      />
+      <Route path="*" element={<HomePage />} />
+    </Routes>
+  );
+}
 
-  if (route === "accredit") {
-    return <AccreditPage onAuthExpired={handleLogout} />;
-  }
-
-  return <DashboardPage admin={admin} onLogout={handleLogout} onAuthExpired={handleLogout} />;
+export default function App(): JSX.Element {
+  return (
+    <BrowserRouter>
+      <Shell />
+    </BrowserRouter>
+  );
 }

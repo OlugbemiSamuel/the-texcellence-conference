@@ -3,7 +3,7 @@ import { ApiError, getErrorMessage } from "../api/client.js";
 import { accreditGuest, getGuestById, getGuestByQrToken, searchGuests } from "../api/guests.api.js";
 import type { Guest } from "../types/guest.types.js";
 import QrScanner from "../components/QrScanner.js";
-import { extractQrToken, readAccreditTokenFromHash } from "../utils/accredit-link.js";
+import { extractQrToken, readAccreditTokenFromLocation } from "../utils/accredit-link.js";
 import "./accredit.css";
 
 // Reference interface: ACCREDIT INTERACTIVE / Guest Check-in.
@@ -89,7 +89,7 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
   // QR deep link (?token=...) opens the guest directly - identified only,
   // never accredited until staff press Verify.
   useEffect(() => {
-    const token = readAccreditTokenFromHash();
+    const token = readAccreditTokenFromLocation();
     if (!token) return;
     let cancelled = false;
     setLookingUp(true);

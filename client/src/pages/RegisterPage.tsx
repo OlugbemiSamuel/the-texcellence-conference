@@ -180,7 +180,7 @@ export default function RegisterPage(): JSX.Element {
           </p>
         </div>
         <a
-          href="#/"
+          href="/"
           className="mt-4 block py-2 text-center text-sm font-medium text-brand-navy underline"
         >
           ← Back to homepage
@@ -208,7 +208,7 @@ export default function RegisterPage(): JSX.Element {
           </button>
         </div>
         <a
-          href="#/"
+          href="/"
           className="mt-4 block py-2 text-center text-sm font-medium text-brand-navy underline"
         >
           ← Back to homepage
