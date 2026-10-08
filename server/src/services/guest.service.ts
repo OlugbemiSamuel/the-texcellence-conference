@@ -3,6 +3,7 @@ import {
   createGuest,
   findGuestByEmail,
   findGuestById,
+  findGuestByPassId,
   findGuestByQrToken,
   generateTicketCredentials,
   listGuests,
@@ -316,6 +317,92 @@ export const sendGuestTicketEmail = async (
   }
   await sendTicketEmail(guest, transporter);
   return guest;
+};
+
+// External registry ingest (Texcellence team pushes their registrations).
+// Upsert by email, same identity rule as public registration: new email
+// creates (attendance "yes" - a completed registration on their side means
+// attending), known email updates profile fields only. Ticket, QR,
+// accreditation and is_sent are NEVER written here, so re-pushes cannot
+// destroy accreditation state. external_pass_id collisions belonging to a
+// DIFFERENT email are rejected loudly instead of silently merged.
+export const ingestExternalGuest = (body: Record<string, unknown>): { guest: Guest; created: boolean } => {
+  const first_name = normalizeFirstName(body["first_name"]);
+  const last_name = normalizeLastName(body["last_name"]);
+  const email = normalizeEmail(body["email"]);
+  const phone = normalizePhone(body["phone"] ?? null);
+  const job_title =
+    body["job_title"] === undefined || body["job_title"] === null || body["job_title"] === ""
+      ? null
+      : String(body["job_title"]).trim();
+  const company =
+    body["company"] === undefined || body["company"] === null || body["company"] === ""
+      ? null
+      : String(body["company"]).trim();
+  const rawPassId = body["external_pass_id"];
+  const external_pass_id =
+    rawPassId === undefined || rawPassId === null || String(rawPassId).trim() === ""
+      ? null
+      : String(rawPassId).trim();
+
+  if (external_pass_id) {
+    const passOwner = findGuestByPassId(external_pass_id);
+    if (passOwner && passOwner.email !== email) {
+      throw new ConflictError("This pass ID already belongs to another guest.");
+    }
+  }
+
+  const existing = findGuestByEmail(email);
+  if (existing) {
+    const updated = persistGuestUpdate(existing.id, {
+      first_name,
+      last_name,
+      email,
+      phone,
+      attendance_status: "yes",
+      job_title,
+      company,
+      external_pass_id,
+    });
+    if (!updated) throw new NotFoundError();
+    return { guest: updated, created: false };
+  }
+
+  try {
+    return {
+      guest: createGuest({
+        first_name,
+        last_name,
+        email,
+        phone,
+        attendance_status: "yes",
+        job_title,
+        company,
+        external_pass_id,
+      }),
+      created: true,
+    };
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("UNIQUE")) {
+      // Race: same email (or pass ID) landed a split second ago.
+      const raced = findGuestByEmail(email);
+      if (raced) {
+        const updated = persistGuestUpdate(raced.id, {
+          first_name,
+          last_name,
+          email,
+          phone,
+          attendance_status: "yes",
+          job_title,
+          company,
+          external_pass_id,
+        });
+        if (updated) return { guest: updated, created: false };
+      }
+      throw new ConflictError("Duplicate guest record.");
+    }
+    throw err;
+  }
 };
 
 export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest => {

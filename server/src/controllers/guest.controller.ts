@@ -10,6 +10,7 @@ import {
   getGuestById,
   getGuestByQrToken,
   getGuests,
+  ingestExternalGuest,
   registerGuest,
   searchGuests,
   sendGuestRsvp,
@@ -149,6 +150,23 @@ export const importGuestsHandler = (
     // JSON body { csv: "..." }: no multipart parser dependency needed.
     const csv = (req.body as { csv?: unknown } | undefined)?.csv;
     res.json(importGuestsFromCsv(csv));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// External registry ingest (Texcellence team's server): 201 created,
+// 200 existing email updated. API-key authenticated, never JWT.
+export const ingestExternalGuestHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    const { guest, created } = ingestExternalGuest(
+      (req.body ?? {}) as Record<string, unknown>
+    );
+    res.status(created ? 201 : 200).json(guest);
   } catch (err) {
     next(err);
   }

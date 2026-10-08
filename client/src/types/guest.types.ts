@@ -19,6 +19,10 @@ export interface Guest {
   is_sent: number;
   // NULL until accredited at the door; source of truth for the UI badge.
   accredited_at: string | null;
+  // Texcellence-registry fields (nullable; our own guests may lack them).
+  job_title: string | null;
+  company: string | null;
+  external_pass_id: string | null;
   created_at: string;
   updated_at: string;
 }

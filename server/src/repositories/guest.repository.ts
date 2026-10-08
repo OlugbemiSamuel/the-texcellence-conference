@@ -14,8 +14,8 @@ const toGuest = (row: GuestRow): Guest => ({ ...row });
 export const createGuest = (input: CreateGuestInput): Guest => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO guests (first_name, last_name, email, phone, attendance_status, ticket_number, qr_token)
-    VALUES (@first_name, @last_name, @email, @phone, @attendance_status, @ticket_number, @qr_token)
+    INSERT INTO guests (first_name, last_name, email, phone, attendance_status, ticket_number, qr_token, job_title, company, external_pass_id)
+    VALUES (@first_name, @last_name, @email, @phone, @attendance_status, @ticket_number, @qr_token, @job_title, @company, @external_pass_id)
   `);
   const result = stmt.run({
     first_name: input.first_name,
@@ -25,6 +25,9 @@ export const createGuest = (input: CreateGuestInput): Guest => {
     attendance_status: input.attendance_status ?? "pending",
     ticket_number: input.ticket_number ?? null,
     qr_token: input.qr_token ?? null,
+    job_title: input.job_title ?? null,
+    company: input.company ?? null,
+    external_pass_id: input.external_pass_id ?? null,
   });
   const created = db
     .prepare(`SELECT * FROM guests WHERE id = ?`)
@@ -57,6 +60,14 @@ export const findGuestByQrToken = (qrToken: string): Guest | null => {
   const row = db
     .prepare(`SELECT * FROM guests WHERE qr_token = ?`)
     .get(qrToken) as GuestRow | undefined;
+  return row ? toGuest(row) : null;
+};
+
+export const findGuestByPassId = (passId: string): Guest | null => {
+  const db = getDb();
+  const row = db
+    .prepare(`SELECT * FROM guests WHERE external_pass_id = ?`)
+    .get(passId) as GuestRow | undefined;
   return row ? toGuest(row) : null;
 };
 
@@ -95,7 +106,7 @@ export const searchGuests = (query: string, limit = 20): Guest[] => {
 // is_sent, created_at, updated_at) are deliberately absent: the repository
 // will never write them, so no caller can smuggle them in.
 export type GuestPatch = Partial<
-  Pick<Guest, "first_name" | "last_name" | "email" | "phone" | "attendance_status">
+  Pick<Guest, "first_name" | "last_name" | "email" | "phone" | "attendance_status" | "job_title" | "company" | "external_pass_id">
 >;
 
 export const updateGuestById = (id: number, patch: GuestPatch): Guest | null => {

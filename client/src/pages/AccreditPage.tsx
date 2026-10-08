@@ -213,6 +213,11 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
         >
           <p className="text-[15px] font-bold text-slate-900">{g.first_name} {g.last_name}</p>
           <p className="mt-0.5 break-words text-sm text-slate-500">{g.email}{g.phone ? `  |  ${g.phone}` : ""}</p>
+          {(g.job_title || g.company) && (
+            <p className="mt-0.5 break-words text-sm text-slate-600">
+              {[g.job_title, g.company].filter(Boolean).join(" · ")}
+            </p>
+          )}
           <p className="mt-1 text-xs text-slate-500">
             Attendance: <strong className="font-semibold text-slate-700">{g.attendance_status}</strong>
             <span className="mx-2 text-slate-300">|</span>
@@ -232,6 +237,11 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-slate-900">{g.first_name} {g.last_name}</p>
           <p className="mt-0.5 break-words text-sm text-slate-500">{g.email}{g.phone ? `  |  ${g.phone}` : ""}</p>
+          {(g.job_title || g.company) && (
+            <p className="mt-0.5 break-words text-sm text-slate-600">
+              {[g.job_title, g.company].filter(Boolean).join(" · ")}
+            </p>
+          )}
           <p className="mt-1 text-xs text-slate-500">
             Attendance: <strong className="font-semibold text-slate-700">{g.attendance_status}</strong>
             <span className="mx-2 text-slate-300">|</span>

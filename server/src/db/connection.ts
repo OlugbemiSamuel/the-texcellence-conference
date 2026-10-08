@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { ADD_ACCREDITED_AT_SQL, GUEST_TABLE_SQL } from "./schema.js";
+import { ADD_ACCREDITED_AT_SQL, ADD_EXTERNAL_COLUMNS_SQL, GUEST_TABLE_SQL } from "./schema.js";
 
 // Learn: connection = the open door to the database file.
 // We keep ONE shared connection (singleton), like one register book
@@ -31,8 +31,15 @@ export const initDb = (): Database.Database => {
   // PRAGMA table_info lists existing columns; ALTER only when missing.
   // No data is touched - existing rows simply get NULL (not accredited).
   const columns = database.prepare(`PRAGMA table_info(guests)`).all() as { name: string }[];
-  if (!columns.some((col) => col.name === "accredited_at")) {
+  const hasColumn = (name: string): boolean => columns.some((col) => col.name === name);
+  if (!hasColumn("accredited_at")) {
     database.exec(ADD_ACCREDITED_AT_SQL);
+  }
+  // Registry integration: one statement per column (SQLite runs them in order).
+  if (!hasColumn("job_title") || !hasColumn("company") || !hasColumn("external_pass_id")) {
+    for (const statement of ADD_EXTERNAL_COLUMNS_SQL.split(";")) {
+      if (statement.trim()) database.exec(statement);
+    }
   }
   return database;
 };

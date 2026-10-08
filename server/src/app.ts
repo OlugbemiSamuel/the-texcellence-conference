@@ -6,6 +6,7 @@ import express, {
 } from "express";
 import { HttpError } from "./errors/http.error.js";
 import { authRouter } from "./routes/auth.routes.js";
+import { externalRouter } from "./routes/external.routes.js";
 import { guestRouter } from "./routes/guest.routes.js";
 import { registrationRouter } from "./routes/registration.routes.js";
 
@@ -31,6 +32,10 @@ app.use("/api/auth", authRouter);
 // Public registration (README Chunk 3): POST /api/registration.
 // No requireAuth: guests register themselves.
 app.use("/api/registration", registrationRouter);
+
+// External registry ingest (Texcellence team server): POST /api/external/guests.
+// API-key authenticated (x-api-key), never JWT - machines can't log in.
+app.use("/api/external", externalRouter);
 
 // Simple root message.
 app.get("/", (_req: Request, res: Response) => {

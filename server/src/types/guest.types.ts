@@ -18,6 +18,10 @@ export interface Guest {
   is_sent: number;
   // NULL until accredited (one-day event: a guest is accredited at most once).
   accredited_at: string | null;
+  // Texcellence-registry fields (nullable; our own guests may never have them).
+  job_title: string | null;
+  company: string | null;
+  external_pass_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,4 +77,7 @@ export interface CreateGuestInput {
   attendance_status?: AttendanceStatus;
   ticket_number?: string | null;
   qr_token?: string | null;
+  job_title?: string | null;
+  company?: string | null;
+  external_pass_id?: string | null;
 }
