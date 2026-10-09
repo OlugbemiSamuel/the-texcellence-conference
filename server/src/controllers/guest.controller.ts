@@ -10,11 +10,13 @@ import {
   getGuestById,
   getGuestByQrToken,
   getGuests,
+  getRecentAccreditations,
   ingestExternalGuest,
   registerGuest,
   searchGuests,
   sendGuestRsvp,
   sendGuestTicketEmail,
+  sendTicketBatch,
   submitPublicRegistration,
   updateGuestById,
 } from "../services/guest.service.js";
@@ -64,6 +66,18 @@ export const getGuestByQrTokenHandler = (
 ): void => {
   try {
     res.json(getGuestByQrToken(req.params.token));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listRecentAccreditationsHandler = (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  try {
+    res.json(getRecentAccreditations());
   } catch (err) {
     next(err);
   }
@@ -136,6 +150,21 @@ export const sendTicketEmailHandler = async (
 ): Promise<void> => {
   try {
     res.json(await sendGuestTicketEmail(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Batch ticket email: next N never-emailed guests, oldest first.
+// Body { limit } optional (default 5, max 20).
+export const sendTicketBatchHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const limit = (req.body as { limit?: unknown } | undefined)?.limit;
+    res.json(await sendTicketBatch(limit));
   } catch (err) {
     next(err);
   }

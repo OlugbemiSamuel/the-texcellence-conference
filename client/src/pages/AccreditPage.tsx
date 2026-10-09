@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, getErrorMessage } from "../api/client.js";
-import { accreditGuest, getGuestById, getGuestByQrToken, searchGuests } from "../api/guests.api.js";
+import { accreditGuest, getGuestById, getGuestByQrToken, listRecentAccreditations, searchGuests } from "../api/guests.api.js";
 import type { Guest } from "../types/guest.types.js";
 import QrScanner from "../components/QrScanner.js";
 import { extractQrToken, readAccreditTokenFromLocation } from "../utils/accredit-link.js";
@@ -47,6 +47,40 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
   const logActivity = (text: string): void => {
     setActivity((prev) => [{ id: Date.now(), text, time: timeNow() }, ...prev].slice(0, 20));
   };
+
+  // Recent activity rail: seeded from the SERVER on mount (newest stamps
+  // first), so refreshes and other devices show the same truth. New stamps
+  // from this desk prepend on top via logActivity.
+  useEffect(() => {
+    let cancelled = false;
+    void listRecentAccreditations()
+      .then((recent) => {
+        if (cancelled) return;
+        setActivity(
+          recent.slice(0, 20).map((g) => ({
+            id: g.id,
+            text: `Accredited: ${g.first_name} ${g.last_name}`,
+            time: g.accredited_at
+              ? new Date(g.accredited_at).toLocaleString([], {
+                  month: "numeric",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : timeNow(),
+          }))
+        );
+      })
+      .catch(() => {
+        // Rail stays on live-only entries; a dead token still logs out
+        // through the search/verify paths, not here.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Once on mount: the rail then lives off server truth + local stamps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const replaceGuest = (updated: Guest): void => {
     setResults((prev) => (prev ? prev.map((g) => (g.id === updated.id ? updated : g)) : prev));
@@ -231,8 +265,10 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
   };
 
   // The selected guest panel: full details plus the single Verify action.
+  // Uses acc-selected (not acc-card) so the stamped guest stands apart
+  // from the plain section cards on a bright event-day screen.
   const selectedCard = (g: Guest): JSX.Element => (
-    <div className="acc-card p-4 sm:p-5">
+    <div className="acc-selected p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-slate-900">{g.first_name} {g.last_name}</p>
@@ -432,11 +468,14 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
                 <p className="mt-3 text-sm text-slate-500">No recent activity</p>
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-2.5">
                 {activity.map((a) => (
-                  <li key={a.id} className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3 text-sm last:border-0 last:pb-0">
-                    <span className="font-medium text-slate-800">{a.text}</span>
-                    <span className="shrink-0 text-xs text-slate-400">{a.time}</span>
+                  <li key={a.id} className="flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5 text-sm">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    </span>
+                    <span className="min-w-0 flex-1 font-semibold text-slate-800">{a.text}</span>
+                    <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-medium tabular-nums text-slate-500 shadow-sm">{a.time}</span>
                   </li>
                 ))}
               </ul>

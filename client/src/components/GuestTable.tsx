@@ -14,16 +14,16 @@ interface GuestTableProps {
   guests: Guest[];
   startIndex: number;
   accreditingId: number | null;
-  generatingTicketId: number | null;
+  openingTicketId: number | null;
   sendingRsvpId: number | null;
   onEdit: (guest: Guest) => void;
   onAccredit: (guest: Guest) => void;
-  onGenerateTicket: (guest: Guest) => void;
+  onOpenTicket: (guest: Guest) => void;
   onViewTicket: (guest: Guest) => void;
   onSendRsvp: (guest: Guest) => void;
 }
 
-export default function GuestTable({ guests, startIndex, accreditingId, generatingTicketId, sendingRsvpId, onEdit, onAccredit, onGenerateTicket, onViewTicket, onSendRsvp }: GuestTableProps): JSX.Element {
+export default function GuestTable({ guests, startIndex, accreditingId, openingTicketId, sendingRsvpId, onEdit, onAccredit, onOpenTicket, onViewTicket, onSendRsvp }: GuestTableProps): JSX.Element {
   if (guests.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -73,12 +73,17 @@ export default function GuestTable({ guests, startIndex, accreditingId, generati
                   <span className="flex items-center gap-2">
                     <span className="text-xs text-slate-500">No Ticket</span>
                     <button
-                      onClick={() => onGenerateTicket(g)}
-                      disabled={generatingTicketId === g.id}
+                      onClick={() => onOpenTicket(g)}
+                      disabled={openingTicketId === g.id}
                       className={btnSmallAccent}
                     >
-                      {generatingTicketId === g.id ? "..." : "Generate Ticket"}
+                      {openingTicketId === g.id ? "..." : "Email Ticket"}
                     </button>
+                  </span>
+                )}
+                {g.ticket_sent_count > 0 && (
+                  <span className="mt-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700" title={`Ticket emailed ${g.ticket_sent_count} time${g.ticket_sent_count === 1 ? "" : "s"}`}>
+                    ×{g.ticket_sent_count} sent
                   </span>
                 )}
               </td>

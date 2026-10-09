@@ -21,7 +21,10 @@ export interface Guest {
   // Texcellence-registry fields (nullable; our own guests may never have them).
   job_title: string | null;
   company: string | null;
+  industry: string | null;
   external_pass_id: string | null;
+  // How many times the QR ticket email was accepted by SMTP.
+  ticket_sent_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +47,10 @@ export interface UpdateGuestBody {
   email?: unknown;
   phone?: unknown;
   attendance_status?: unknown;
+  job_title?: unknown;
+  company?: unknown;
+  industry?: unknown;
+  external_pass_id?: unknown;
 }
 
 // Validated patch: only updatable fields, already normalized.
@@ -55,6 +62,10 @@ export interface UpdateGuestInput {
   email?: string;
   phone?: string | null;
   attendance_status?: AttendanceStatus;
+  job_title?: string | null;
+  company?: string | null;
+  industry?: string | null;
+  external_pass_id?: string | null;
 }
 
 // Shape of the public POST /api/registration body.
@@ -79,5 +90,6 @@ export interface CreateGuestInput {
   qr_token?: string | null;
   job_title?: string | null;
   company?: string | null;
+  industry?: string | null;
   external_pass_id?: string | null;
 }

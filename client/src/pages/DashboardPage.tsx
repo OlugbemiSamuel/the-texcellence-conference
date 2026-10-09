@@ -6,6 +6,7 @@ import {
   getGuestById,
   listGuests,
   sendRsvp,
+  sendTicketBatch,
 } from "../api/guests.api.js";
 import type { AttendanceStatus, Guest } from "../types/guest.types.js";
 import type { AuthAdmin } from "../types/auth.types.js";
@@ -56,10 +57,11 @@ export default function DashboardPage({
   const [adding, setAdding] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [accreditingId, setAccreditingId] = useState<number | null>(null);
-  const [generatingTicketId, setGeneratingTicketId] = useState<number | null>(
+  const [openingTicketId, setOpeningTicketId] = useState<number | null>(
     null,
   );
   const [sendingRsvpId, setSendingRsvpId] = useState<number | null>(null);
+  const [sendingBatch, setSendingBatch] = useState(false);
   const [ticketGuest, setTicketGuest] = useState<Guest | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -114,12 +116,11 @@ export default function DashboardPage({
     }
   };
 
-  // Ticket generation: loading on the row, backend stamps once and
-  // returns the SAME credentials on repeat calls (idempotent), then the
-  // ticket modal opens with the confirmed guest.
-  const handleGenerateTicket = async (guest: Guest): Promise<void> => {
-    if (generatingTicketId !== null) return;
-    setGeneratingTicketId(guest.id);
+  // Ticket modal: tickets are automatic since creation, so opening only
+  // ensures credentials exist (idempotent), then shows the email button.
+  const handleOpenTicket = async (guest: Guest): Promise<void> => {
+    if (openingTicketId !== null) return;
+    setOpeningTicketId(guest.id);
     setNotice(null);
     try {
       const updated = await generateGuestTicket(guest.id);
@@ -132,7 +133,38 @@ export default function DashboardPage({
       }
       setNotice(getErrorMessage(err));
     } finally {
-      setGeneratingTicketId(null);
+      setOpeningTicketId(null);
+    }
+  };
+
+  // Batch ticket email: next 5 never-emailed guests, oldest first.
+  // Each click takes the NEXT 5 (sent ones drop out server-side).
+  // Failures never block the rest and are listed for retry.
+  const handleSendBatch = async (): Promise<void> => {
+    if (sendingBatch) return;
+    setSendingBatch(true);
+    setNotice(null);
+    try {
+      const outcome = await sendTicketBatch(5);
+      const fresh = await listGuests();
+      setGuests(fresh);
+      const sentTotal = fresh.filter((g) => g.ticket_sent_count > 0).length;
+      const failed = outcome.failed
+        .map((f) => `${f.email} (${f.message})`)
+        .join("; ");
+      setNotice(
+        `Batch done: emailed ${outcome.sent.length} (total sent ${sentTotal}/${fresh.length}).` +
+          (failed ? ` Failed: ${failed}.` : "") +
+          (outcome.sent.length === 0 && outcome.failed.length === 0 ? " Nobody left to email." : "")
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onAuthExpired();
+        return;
+      }
+      setNotice(getErrorMessage(err));
+    } finally {
+      setSendingBatch(false);
     }
   };
 
@@ -541,6 +573,13 @@ export default function DashboardPage({
                 >
                   Import CSV
                 </button>
+                <button
+                  onClick={() => { void handleSendBatch(); }}
+                  disabled={sendingBatch || loading}
+                  className={btnPrimary}
+                >
+                  {sendingBatch ? "Emailing 5..." : "Send next 5 tickets"}
+                </button>
               </div>
 
               {loading && (
@@ -559,11 +598,11 @@ export default function DashboardPage({
                     guests={pageGuests}
                     startIndex={(safePage - 1) * PAGE_SIZE}
                     accreditingId={accreditingId}
-                    generatingTicketId={generatingTicketId}
+                    openingTicketId={openingTicketId}
                     sendingRsvpId={sendingRsvpId}
                     onEdit={setEditing}
                     onAccredit={handleAccredit}
-                    onGenerateTicket={handleGenerateTicket}
+                    onOpenTicket={handleOpenTicket}
                     onViewTicket={setTicketGuest}
                     onSendRsvp={handleSendRsvp}
                   />
@@ -684,7 +723,15 @@ export default function DashboardPage({
       </main>
 
       {ticketGuest && (
-        <TicketModal guest={ticketGuest} onClose={() => setTicketGuest(null)} onAuthExpired={onAuthExpired} />
+        <TicketModal
+          guest={ticketGuest}
+          onClose={() => setTicketGuest(null)}
+          onAuthExpired={onAuthExpired}
+          onEmailed={(updated) => {
+            setGuests((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+            setTicketGuest(updated);
+          }}
+        />
       )}
 
       {importOpen && (

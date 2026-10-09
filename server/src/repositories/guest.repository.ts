@@ -6,7 +6,7 @@ import { getDb } from "../db/connection.js";
 // Controllers/services must ask the repository; they never run SQL directly.
 // This keeps SQL in one place so a schema change touches one file.
 
-// Row as better-sqlite3 returns it (snake_case, matches table columns).
+// Row as the driver returns it (snake_case, matches table columns).
 type GuestRow = Guest;
 
 const toGuest = (row: GuestRow): Guest => ({ ...row });
@@ -14,8 +14,8 @@ const toGuest = (row: GuestRow): Guest => ({ ...row });
 export const createGuest = (input: CreateGuestInput): Guest => {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO guests (first_name, last_name, email, phone, attendance_status, ticket_number, qr_token, job_title, company, external_pass_id)
-    VALUES (@first_name, @last_name, @email, @phone, @attendance_status, @ticket_number, @qr_token, @job_title, @company, @external_pass_id)
+    INSERT INTO guests (first_name, last_name, email, phone, attendance_status, ticket_number, qr_token, job_title, company, industry, external_pass_id)
+    VALUES (@first_name, @last_name, @email, @phone, @attendance_status, @ticket_number, @qr_token, @job_title, @company, @industry, @external_pass_id)
   `);
   const result = stmt.run({
     first_name: input.first_name,
@@ -27,6 +27,7 @@ export const createGuest = (input: CreateGuestInput): Guest => {
     qr_token: input.qr_token ?? null,
     job_title: input.job_title ?? null,
     company: input.company ?? null,
+    industry: input.industry ?? null,
     external_pass_id: input.external_pass_id ?? null,
   });
   const created = db
@@ -71,14 +72,28 @@ export const findGuestByPassId = (passId: string): Guest | null => {
   return row ? toGuest(row) : null;
 };
 
-export const listGuests = (limit = 50): Guest[] => {
+export const listGuests = (limit = 2000): Guest[] => {
   const db = getDb();
+  const capped = Math.min(Math.max(limit, 1), 2000);
   const rows = db
     .prepare(`SELECT * FROM guests ORDER BY id ASC LIMIT ?`)
-    .all(limit) as GuestRow[];
+    .all(capped) as unknown as GuestRow[];
   return rows.map(toGuest);
 };
 
+// Recently accredited guests for the desk's activity rail. Server truth
+// (accredited_at timestamps), so the list survives refresh and is shared
+// across devices - unlike the in-memory log it replaces.
+export const listRecentlyAccredited = (limit = 20): Guest[] => {
+  const db = getDb();
+  const capped = Math.min(Math.max(limit, 1), 50);
+  const rows = db
+    .prepare(
+      `SELECT * FROM guests WHERE accredited_at IS NOT NULL ORDER BY accredited_at DESC LIMIT ?`
+    )
+    .all(capped) as unknown as GuestRow[];
+  return rows.map(toGuest);
+};
 // Read-only search for the accreditation desk. One parameterized LIKE per
 // meaningful identifier; % and _ in the input are escaped so they match
 // literally instead of acting as wildcards. No data is ever modified here.
@@ -98,7 +113,7 @@ export const searchGuests = (query: string, limit = 20): Guest[] => {
           OR ticket_number LIKE ? ESCAPE '\\'
        ORDER BY id ASC LIMIT ?`
     )
-    .all(like, like, like, like, like, capped) as GuestRow[];
+    .all(like, like, like, like, like, capped) as unknown as GuestRow[];
   return rows.map(toGuest);
 };
 
@@ -106,7 +121,7 @@ export const searchGuests = (query: string, limit = 20): Guest[] => {
 // is_sent, created_at, updated_at) are deliberately absent: the repository
 // will never write them, so no caller can smuggle them in.
 export type GuestPatch = Partial<
-  Pick<Guest, "first_name" | "last_name" | "email" | "phone" | "attendance_status" | "job_title" | "company" | "external_pass_id">
+  Pick<Guest, "first_name" | "last_name" | "email" | "phone" | "attendance_status" | "job_title" | "company" | "industry" | "external_pass_id">
 >;
 
 export const updateGuestById = (id: number, patch: GuestPatch): Guest | null => {
@@ -144,7 +159,7 @@ export const accreditGuestById = (id: number): AccreditResult => {
        WHERE id = ? AND accredited_at IS NULL`
     )
     .run(id);
-  if (result.changes > 0) {
+  if (Number(result.changes) > 0) {
     const guest = findGuestById(id);
     // We just updated it, so it must exist; guard is for TypeScript.
     if (guest) return { status: "accredited", guest };
@@ -166,6 +181,30 @@ export const markRsvpSent = (id: number): Guest | null => {
   return findGuestById(id);
 };
 
+// Ticket-send counter: +1 strictly AFTER SMTP accepts the ticket email,
+// so the badge number always means "delivered that many times".
+export const markTicketSent = (id: number): Guest | null => {
+  const db = getDb();
+  db.prepare(
+    `UPDATE guests SET ticket_sent_count = ticket_sent_count + 1, updated_at = datetime('now') WHERE id = ?`
+  ).run(id);
+  return findGuestById(id);
+};
+
+// Next batch of ticket recipients: oldest first (list order), only guests
+// never emailed a ticket. Each click sends to the NEXT 5 because sent ones
+// drop out of this query.
+export const listUnsentTicketBatch = (limit = 5): Guest[] => {
+  const db = getDb();
+  const capped = Math.min(Math.max(limit, 1), 20);
+  const rows = db
+    .prepare(
+      `SELECT * FROM guests WHERE ticket_sent_count = 0 ORDER BY id ASC LIMIT ?`
+    )
+    .all(capped) as unknown as GuestRow[];
+  return rows.map(toGuest);
+};
+
 // Ticket format: TEX-000001, derived from the guest's own id.
 // Unique because ids are unique; human-readable; backend-only.
 // A 32-byte (64 hex char) random token: unguessable, opaque, no PII.
@@ -178,14 +217,22 @@ const ticketNumberFor = (id: number): string => {
 
 export const generateTicketCredentials = (id: number): Guest | null => {
   const db = getDb();
-  // Transaction = all-or-nothing: the row is read, stamped, and re-read
-  // as one unit, so concurrent admins can't half-write each other's work.
+  // No driver transaction helper (node:sqlite has none) - run the
+  // read-stamp-re-read as one SQLite transaction manually so concurrent
+  // admins can't half-write each other's work.
   // Idempotent: existing credentials are returned untouched, never rotated.
-  const run = db.transaction((guestId: number): Guest | null => {
-    const existing = findGuestById(guestId);
-    if (!existing) return null;
-    if (existing.ticket_number && existing.qr_token) return existing;
-    const ticket_number = existing.ticket_number ?? ticketNumberFor(guestId);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const existing = findGuestById(id);
+    if (!existing) {
+      db.exec("ROLLBACK");
+      return null;
+    }
+    if (existing.ticket_number && existing.qr_token) {
+      db.exec("ROLLBACK");
+      return existing;
+    }
+    const ticket_number = existing.ticket_number ?? ticketNumberFor(id);
     let qr_token = existing.qr_token;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const candidate = qr_token ?? randomBytes(QR_TOKEN_BYTES).toString("hex");
@@ -195,7 +242,7 @@ export const generateTicketCredentials = (id: number): Guest | null => {
            SET ticket_number = @ticket_number, qr_token = @qr_token,
                updated_at = datetime('now')
            WHERE id = @id`
-        ).run({ ticket_number, qr_token: candidate, id: guestId });
+        ).run({ ticket_number, qr_token: candidate, id });
         qr_token = candidate;
         break;
       } catch (err) {
@@ -207,7 +254,15 @@ export const generateTicketCredentials = (id: number): Guest | null => {
         throw err;
       }
     }
-    return findGuestById(guestId);
-  });
-  return run(id);
+    const done = findGuestById(id);
+    db.exec("COMMIT");
+    return done;
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // ignore - connection may already be out of transaction
+    }
+    throw err;
+  }
 };

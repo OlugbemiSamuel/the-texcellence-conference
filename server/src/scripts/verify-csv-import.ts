@@ -63,9 +63,9 @@ const run = (): void => {
   check("4-8 all bad rows skipped", r3.created === 0 && r3.updated === 0 && r3.skipped === 5 && r3.errors.length === 5);
   check("row numbers reported", r3.errors.every((e) => e.row >= 2));
 
-  // Pending rejected in import (explicit final answer required).
+  // Pending accepted in import (invite lists arrive with no response yet).
   const r4 = importGuestsFromCsv("first_name,last_name,email,phone,attendance_status\nA,B,pend@example.com,,pending\n");
-  check("pending rejected", r4.skipped === 1 && r4.created === 0);
+  check("pending accepted", r4.skipped === 0 && r4.created === 1);
 
   // Protected + unknown columns rejected at the header.
   try {

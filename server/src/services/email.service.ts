@@ -41,8 +41,8 @@ const emailShell = (title: string, bodyHtml: string): string => {
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f2f2; padding:24px 0;">` +
     `<tr><td align="center">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; margin:0 auto;">` +
-    `<tr><td style="padding:0; background-color:${CONFERENCE.navy};">` +
-    `<img src="cid:texcellence-flyer" alt="${CONFERENCE.name} - ${CONFERENCE.theme}" width="600" style="display:block; width:100%; max-width:100%; height:auto; border:0; color:#ffffff; font-size:16px; font-weight:bold; text-align:center;" />` +
+    `<tr><td style="padding:0; background-color:${CONFERENCE.navy};" align="center">` +
+    `<img src="cid:texcellence-flyer" alt="${CONFERENCE.name} - ${CONFERENCE.theme}" width="380" style="display:block; width:100%; max-width:380px; height:auto; border:0; color:#ffffff; font-size:16px; font-weight:bold; text-align:center; margin:0 auto;" />` +
     `</td></tr>` +
     `<tr><td style="height:6px; background-color:${CONFERENCE.gold}; font-size:0; line-height:0;">&nbsp;</td></tr>` +
     `<tr><td style="padding:0 32px;">` +

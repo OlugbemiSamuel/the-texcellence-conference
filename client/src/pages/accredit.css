@@ -14,6 +14,17 @@
   overflow: hidden;
 }
 
+/* Selected guest: must stand apart from the plain section cards -
+   emerald-tinted surface, thicker border, deeper shadow, so tired
+   door staff never mistake it for background. */
+.acc-selected {
+  background: #ecfdf5;
+  border: 2px solid #10b981;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+  overflow: hidden;
+}
+
 .acc-card-head {
   display: flex;
   align-items: center;

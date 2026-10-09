@@ -14,9 +14,10 @@ interface TicketModalProps {
   guest: Guest;
   onClose: () => void;
   onAuthExpired: () => void;
+  onEmailed?: (guest: Guest) => void;
 }
 
-export default function TicketModal({ guest, onClose, onAuthExpired }: TicketModalProps): JSX.Element {
+export default function TicketModal({ guest, onClose, onAuthExpired, onEmailed }: TicketModalProps): JSX.Element {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +27,9 @@ export default function TicketModal({ guest, onClose, onAuthExpired }: TicketMod
     setSending(true);
     setError(null);
     try {
-      await sendTicketEmail(guest.id);
+      const updated = await sendTicketEmail(guest.id);
       setSent(true);
+      onEmailed?.(updated);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         onAuthExpired();

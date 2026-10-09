@@ -33,6 +33,10 @@ export const getGuestByQrToken = async (token: string): Promise<Guest> => {
   return apiFetch<Guest>(`/api/guests/qr/${encodeURIComponent(token)}`);
 };
 
+export const listRecentAccreditations = async (): Promise<Guest[]> => {
+  return apiFetch<Guest[]>("/api/guests/recent-accreditations");
+};
+
 export const generateGuestTicket = async (id: number): Promise<Guest> => {
   return apiFetch<Guest>(`/api/guests/${id}/ticket`, { method: "POST" });
 };
@@ -43,6 +47,18 @@ export const sendRsvp = async (id: number): Promise<Guest> => {
 
 export const sendTicketEmail = async (id: number): Promise<Guest> => {
   return apiFetch<Guest>(`/api/guests/${id}/ticket-email`, { method: "POST" });
+};
+
+export interface TicketBatchResult {
+  sent: Guest[];
+  failed: { id: number; email: string; message: string }[];
+}
+
+export const sendTicketBatch = async (limit = 5): Promise<TicketBatchResult> => {
+  return apiFetch<TicketBatchResult>("/api/guests/ticket-email/batch", {
+    method: "POST",
+    body: { limit },
+  });
 };
 
 export const updateGuest = async (id: number, patch: UpdateGuestPayload): Promise<Guest> => {

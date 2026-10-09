@@ -22,7 +22,10 @@ export interface Guest {
   // Texcellence-registry fields (nullable; our own guests may lack them).
   job_title: string | null;
   company: string | null;
+  industry: string | null;
   external_pass_id: string | null;
+  // QR ticket emails accepted by SMTP; drives the per-row send counter.
+  ticket_sent_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +36,10 @@ export interface UpdateGuestPayload {
   email?: string;
   phone?: string | null;
   attendance_status?: AttendanceStatus;
+  job_title?: string | null;
+  company?: string | null;
+  industry?: string | null;
+  external_pass_id?: string | null;
 }
 
 export interface CsvImportRowError {

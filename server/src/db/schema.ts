@@ -13,9 +13,11 @@ CREATE TABLE IF NOT EXISTS guests (
   ticket_number TEXT UNIQUE,
   qr_token TEXT UNIQUE,
   is_sent INTEGER NOT NULL DEFAULT 0,
+  ticket_sent_count INTEGER NOT NULL DEFAULT 0,
   accredited_at TEXT,
   job_title TEXT,
   company TEXT,
+  industry TEXT,
   external_pass_id TEXT UNIQUE,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))

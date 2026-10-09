@@ -24,6 +24,7 @@ One endpoint. No dashboard login needed on your side.
 | `phone`            | no       | Empty string = stored as no phone.               |
 | `job_title`        | no       | Empty string = stored as none.                   |
 | `company`          | no       | Empty string = stored as none.                   |
+| `industry`         | no       | Empty string = stored as none.                   |
 | `external_pass_id` | no       | Your pass ID, e.g. `TXC26-966674`. Must be unique. |
 
 Unknown fields are ignored. Protected fields (`ticket_number`, `qr_token`,

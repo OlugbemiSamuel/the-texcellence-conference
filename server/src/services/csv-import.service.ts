@@ -1,4 +1,5 @@
 import {
+  generateTicketCredentials,
   createGuest,
   findGuestByEmail,
   updateGuestById as persistGuestUpdate,
@@ -8,15 +9,16 @@ import {
   normalizeEmail,
   normalizeFirstName,
   normalizeLastName,
+  normalizeOptionalText,
   normalizePhone,
 } from "./guest.service.js";
 import { ValidationError } from "../errors/http.error.js";
 
-// Learn: CSV import is the same upsert as public registration, but in
-// bulk and admin-only. Accepted columns are EXACTLY the 5 registration
-// fields - anything else (id, ticket_number, qr_token, accredited_at,
-// is_sent, timestamps) is rejected at the header, so protected state can
-// never be smuggled in through a spreadsheet.
+// Learn: CSV import is the admin bulk upsert. Accepted columns are the
+// registration fields plus invite-list profile columns - anything else
+// (id, ticket_number, qr_token, accredited_at, is_sent, timestamps) is
+// rejected at the header, so protected state can never be smuggled in
+// through a spreadsheet.
 
 export interface CsvImportRowError {
   row: number;
@@ -33,7 +35,7 @@ export interface CsvImportResult {
 }
 
 const MAX_ROWS = 2000;
-const ALLOWED_COLUMNS = ["first_name", "last_name", "email", "phone", "attendance_status"] as const;
+const ALLOWED_COLUMNS = ["first_name", "last_name", "email", "phone", "mobile", "attendance_status", "company", "job_title", "industry", "external_pass_id"] as const;
 const PROTECTED_COLUMNS = ["id", "ticket_number", "qr_token", "accredited_at", "is_sent", "created_at", "updated_at"];
 
 // Minimal RFC-4180-style parser: commas, "quoted, fields" and "" escapes,
@@ -136,22 +138,35 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
     let last_name: string;
     let email: string;
     let phone: string | null;
-    let attendance_status: "yes" | "no";
+    let attendance_status: "yes" | "no" | "pending";
+    let company: string | null;
+    let job_title: string | null;
+    let industry: string | null;
+    let external_pass_id: string | null;
     try {
       first_name = normalizeFirstName(cells[idx("first_name")] ?? "");
       last_name = normalizeLastName(cells[idx("last_name")] ?? "");
       email = normalizeEmail(emailRaw);
-      phone = idx("phone") >= 0 ? normalizePhone(cells[idx("phone")] ?? "") : null;
+      // Phone or Mobile header both land in the guest's single phone field:
+      // Phone wins when both are filled, Mobile fills the gaps.
+      // (Invite sheets split them across two columns; the table keeps one.)
+      const rawPhone = cells[idx("phone")] ?? "";
+      const rawMobile = idx("mobile") >= 0 ? cells[idx("mobile")] ?? "" : "";
+      const pickedPhone = rawPhone.trim() !== "" ? rawPhone : rawMobile;
+      phone = idx("phone") >= 0 || idx("mobile") >= 0 ? normalizePhone(pickedPhone) : null;
       const rawAttendance = idx("attendance_status") >= 0 ? cells[idx("attendance_status")] ?? "" : "";
-      // CSV import demands an explicit final answer: pending is rejected.
+      // Invite lists arrive with no response yet: blank attendance means
+      // "pending" (invited, not yet replied). Explicit yes/no still enforced
+      // wherever a final answer is required (public registration).
       if (typeof rawAttendance !== "string" || rawAttendance.trim() === "") {
-        throw new ValidationError("attendance_status is required");
+        attendance_status = "pending";
+      } else {
+        attendance_status = normalizeAttendance(rawAttendance);
       }
-      const status = normalizeAttendance(rawAttendance);
-      if (status === "pending") {
-        throw new ValidationError('attendance_status must be "yes" or "no"');
-      }
-      attendance_status = status;
+      company = idx("company") >= 0 ? normalizeOptionalText(cells[idx("company")] ?? "", "company") : null;
+      job_title = idx("job_title") >= 0 ? normalizeOptionalText(cells[idx("job_title")] ?? "", "job_title") : null;
+      industry = idx("industry") >= 0 ? normalizeOptionalText(cells[idx("industry")] ?? "", "industry") : null;
+      external_pass_id = idx("external_pass_id") >= 0 ? normalizeOptionalText(cells[idx("external_pass_id")] ?? "", "external_pass_id") : null;
     } catch (err) {
       fail(err instanceof Error ? err.message : "Invalid row");
       return;
@@ -160,10 +175,13 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
     const existing = findGuestByEmail(email);
     try {
       if (existing) {
-        persistGuestUpdate(existing.id, { first_name, last_name, email, phone, attendance_status });
+        persistGuestUpdate(existing.id, { first_name, last_name, email, phone, attendance_status, company, job_title, industry, external_pass_id });
+        // Imported rows always leave with a ticket (idempotent when present).
+        generateTicketCredentials(existing.id);
         result.updated += 1;
       } else {
-        createGuest({ first_name, last_name, email, phone, attendance_status });
+        const created = createGuest({ first_name, last_name, email, phone, attendance_status, company, job_title, industry, external_pass_id });
+        generateTicketCredentials(created.id);
         result.created += 1;
       }
     } catch (err) {
@@ -171,7 +189,7 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
       if (err instanceof Error && err.message.includes("UNIQUE")) {
         const raced = findGuestByEmail(email);
         if (raced) {
-          persistGuestUpdate(raced.id, { first_name, last_name, email, phone, attendance_status });
+          persistGuestUpdate(raced.id, { first_name, last_name, email, phone, attendance_status, company, job_title, industry, external_pass_id });
           result.updated += 1;
           return;
         }

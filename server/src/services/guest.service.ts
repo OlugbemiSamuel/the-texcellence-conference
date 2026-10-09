@@ -7,7 +7,10 @@ import {
   findGuestByQrToken,
   generateTicketCredentials,
   listGuests,
+  listRecentlyAccredited,
+  listUnsentTicketBatch,
   markRsvpSent,
+  markTicketSent,
   searchGuests as findGuestsByQuery,
   updateGuestById as persistGuestUpdate,
 } from "../repositories/guest.repository.js";
@@ -96,6 +99,18 @@ export const normalizeAttendance = (raw: unknown): AttendanceStatus => {
   return raw as AttendanceStatus;
 };
 
+// Optional profile text (company, job title, industry, pass ID):
+// missing/empty becomes NULL, anything else is trimmed. Non-string,
+// non-null values are rejected so spreadsheets can't smuggle types in.
+export const normalizeOptionalText = (raw: unknown, field: string): string | null => {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") {
+    throw new ValidationError(`${field} must be a string`);
+  }
+  const value = raw.trim();
+  return value === "" ? null : value;
+};
+
 // URL ids arrive as strings ("3"). Accept numeric strings and numbers,
 // reject everything else (abc, 3.5, -1, empty) with a 400.
 const parseGuestId = (rawId: unknown): number => {
@@ -124,7 +139,10 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
   }
 
   try {
-    return createGuest(input);
+    // Tickets are automatic: every new guest leaves here with credentials,
+    // so the desk never needs a manual "generate" step.
+    const created = createGuest(input);
+    return generateTicketCredentials(created.id) ?? created;
   } catch (err) {
     // Never leak raw SQLite text ("UNIQUE constraint failed...") to clients.
     if (err instanceof Error && err.message.includes("UNIQUE")) {
@@ -136,6 +154,12 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
 
 export const getGuests = (): Guest[] => {
   return listGuests();
+};
+
+// Recent activity rail: newest accreditations first, server timestamps.
+// Read-only, staff-only route. Empty when nobody accredited yet.
+export const getRecentAccreditations = (): Guest[] => {
+  return listRecentlyAccredited();
 };
 
 // QR tokens are 64 hex chars (32 random bytes). Anything else is rejected
@@ -299,7 +323,8 @@ export const sendGuestRsvp = async (
 };
 
 // Ticket email: ensures credentials exist first (idempotent), then mails
-// the QR. Does NOT touch is_sent (that's RSVP-only).
+// the QR. Counts +1 strictly AFTER SMTP accepts, so the per-guest badge
+// always means "delivered that many times".
 export const sendGuestTicketEmail = async (
   rawId: unknown,
   transporter?: Transporter
@@ -316,7 +341,45 @@ export const sendGuestTicketEmail = async (
     }
   }
   await sendTicketEmail(guest, transporter);
-  return guest;
+  const counted = markTicketSent(id);
+  if (!counted) {
+    throw new NotFoundError();
+  }
+  return counted;
+};
+
+export interface TicketBatchResult {
+  sent: Guest[];
+  failed: { id: number; email: string; message: string }[];
+}
+
+// Batch ticket email: the next `limit` never-emailed guests, oldest first
+// (list order). Sequential sends (shared-host SMTP throttles parallel
+// blasts); one guest's failure never stops the rest. Each click naturally
+// takes the NEXT batch because sent guests leave the unsent query.
+export const sendTicketBatch = async (
+  rawLimit: unknown,
+  transporter?: Transporter
+): Promise<TicketBatchResult> => {
+  const limit =
+    typeof rawLimit === "number" && Number.isInteger(rawLimit)
+      ? Math.min(Math.max(rawLimit, 1), 20)
+      : 5;
+  const batch = listUnsentTicketBatch(limit);
+  const sent: Guest[] = [];
+  const failed: { id: number; email: string; message: string }[] = [];
+  for (const guest of batch) {
+    try {
+      sent.push(await sendGuestTicketEmail(guest.id, transporter));
+    } catch (err) {
+      failed.push({
+        id: guest.id,
+        email: guest.email,
+        message: err instanceof Error ? err.message : "Could not send ticket",
+      });
+    }
+  }
+  return { sent, failed };
 };
 
 // External registry ingest (Texcellence team pushes their registrations).
@@ -331,19 +394,10 @@ export const ingestExternalGuest = (body: Record<string, unknown>): { guest: Gue
   const last_name = normalizeLastName(body["last_name"]);
   const email = normalizeEmail(body["email"]);
   const phone = normalizePhone(body["phone"] ?? null);
-  const job_title =
-    body["job_title"] === undefined || body["job_title"] === null || body["job_title"] === ""
-      ? null
-      : String(body["job_title"]).trim();
-  const company =
-    body["company"] === undefined || body["company"] === null || body["company"] === ""
-      ? null
-      : String(body["company"]).trim();
-  const rawPassId = body["external_pass_id"];
-  const external_pass_id =
-    rawPassId === undefined || rawPassId === null || String(rawPassId).trim() === ""
-      ? null
-      : String(rawPassId).trim();
+  const job_title = normalizeOptionalText(body["job_title"] ?? null, "job_title");
+  const company = normalizeOptionalText(body["company"] ?? null, "company");
+  const industry = normalizeOptionalText(body["industry"] ?? null, "industry");
+  const external_pass_id = normalizeOptionalText(body["external_pass_id"] ?? null, "external_pass_id");
 
   if (external_pass_id) {
     const passOwner = findGuestByPassId(external_pass_id);
@@ -362,6 +416,7 @@ export const ingestExternalGuest = (body: Record<string, unknown>): { guest: Gue
       attendance_status: "yes",
       job_title,
       company,
+      industry,
       external_pass_id,
     });
     if (!updated) throw new NotFoundError();
@@ -369,19 +424,19 @@ export const ingestExternalGuest = (body: Record<string, unknown>): { guest: Gue
   }
 
   try {
-    return {
-      guest: createGuest({
-        first_name,
-        last_name,
-        email,
-        phone,
-        attendance_status: "yes",
-        job_title,
-        company,
-        external_pass_id,
-      }),
-      created: true,
-    };
+    const created = createGuest({
+      first_name,
+      last_name,
+      email,
+      phone,
+      attendance_status: "yes",
+      job_title,
+      company,
+      industry,
+      external_pass_id,
+    });
+    // Tickets are automatic for pushed registrations too.
+    return { guest: generateTicketCredentials(created.id) ?? created, created: true };
   } catch (err) {
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       // Race: same email (or pass ID) landed a split second ago.
@@ -395,6 +450,7 @@ export const ingestExternalGuest = (body: Record<string, unknown>): { guest: Gue
           attendance_status: "yes",
           job_title,
           company,
+          industry,
           external_pass_id,
         });
         if (updated) return { guest: updated, created: false };
@@ -443,6 +499,18 @@ export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest =>
   }
   if (record["attendance_status"] !== undefined) {
     patch.attendance_status = normalizeAttendance(record["attendance_status"]);
+  }
+  if (record["job_title"] !== undefined) {
+    patch.job_title = normalizeOptionalText(record["job_title"], "job_title");
+  }
+  if (record["company"] !== undefined) {
+    patch.company = normalizeOptionalText(record["company"], "company");
+  }
+  if (record["industry"] !== undefined) {
+    patch.industry = normalizeOptionalText(record["industry"], "industry");
+  }
+  if (record["external_pass_id"] !== undefined) {
+    patch.external_pass_id = normalizeOptionalText(record["external_pass_id"], "external_pass_id");
   }
   if (Object.keys(patch).length === 0) {
     throw new ValidationError("no updatable fields provided");
