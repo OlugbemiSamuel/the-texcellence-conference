@@ -106,11 +106,13 @@ export const registrationUrl = (): string => {
   return `${base}/register`;
 };
 
-// Deep link encoded in ticket QRs: <origin>/accredit?token=<qr>.
-// Same value the TicketModal renders, so phone cameras open the desk.
+// Deep link encoded in ticket QRs: <origin>/ticket?token=<qr>.
+// Public verification page (no login): any camera shows name + company.
+// Staff scanning the same QR still resolves via extractQrToken on
+// the desk side, since it accepts any URL carrying token=.
 export const accreditUrl = (qrToken: string): string => {
   const base = (process.env.PUBLIC_APP_URL || "http://localhost:5173").replace(/\/+$/, "");
-  return `${base}/accredit?token=${encodeURIComponent(qrToken)}`;
+  return `${base}/ticket?token=${encodeURIComponent(qrToken)}`;
 };
 
 export const buildRsvpEmail = (guest: Guest): RsvpEmailContent => {

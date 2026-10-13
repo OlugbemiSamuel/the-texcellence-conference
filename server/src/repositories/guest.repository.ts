@@ -53,6 +53,32 @@ export const findGuestByEmail = (email: string): Guest | null => {
   return row ? toGuest(row) : null;
 };
 
+// Name-key dedupe for printed-list guests (no email): same first+last
+// name, narrowed by company, then phone. Collisions that survive all
+// three are treated as distinct people (create new).
+export const findGuestByNameKey = (
+  firstName: string,
+  lastName: string,
+  company: string | null,
+  phone: string | null
+): Guest | null => {
+  const db = getDb();
+  const same = db
+    .prepare(
+      `SELECT * FROM guests WHERE first_name = ? COLLATE NOCASE AND last_name = ? COLLATE NOCASE`
+    )
+    .all(firstName, lastName) as unknown as GuestRow[];
+  if (same.length === 0) return null;
+  if (same.length === 1) return toGuest(same[0]);
+  const norm = (value: string | null): string => (value ?? "").trim().toLowerCase();
+  const byCompany = same.filter((row) => norm(row.company) === norm(company));
+  if (byCompany.length === 1) return toGuest(byCompany[0]);
+  const pool = byCompany.length > 0 ? byCompany : same;
+  const byPhone = pool.filter((row) => norm(row.phone) === norm(phone));
+  if (byPhone.length === 1) return toGuest(byPhone[0]);
+  return null;
+};
+
 // QR lookup for the accreditation desk: resolves an opaque token to its
 // guest. Read-only, single parameterized query - the token is data,
 // never SQL. Scanning only IDENTIFIES; accreditation is a separate call.

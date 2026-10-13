@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ApiError, getErrorMessage } from "../api/client.js";
+import { ApiError, getErrorMessage, getToken } from "../api/client.js";
 import {
   accreditGuest,
   generateGuestTicket,
@@ -62,6 +62,7 @@ export default function DashboardPage({
   );
   const [sendingRsvpId, setSendingRsvpId] = useState<number | null>(null);
   const [sendingBatch, setSendingBatch] = useState(false);
+  const [downloadingXlsx, setDownloadingXlsx] = useState(false);
   const [ticketGuest, setTicketGuest] = useState<Guest | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -150,7 +151,7 @@ export default function DashboardPage({
       setGuests(fresh);
       const sentTotal = fresh.filter((g) => g.ticket_sent_count > 0).length;
       const failed = outcome.failed
-        .map((f) => `${f.email} (${f.message})`)
+        .map((f) => `${f.email ?? "no email"} (${f.message})`)
         .join("; ");
       setNotice(
         `Batch done: emailed ${outcome.sent.length} (total sent ${sentTotal}/${fresh.length}).` +
@@ -178,7 +179,7 @@ export default function DashboardPage({
     try {
       const updated = await sendRsvp(guest.id);
       setGuests((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
-      setNotice(`RSVP email sent to ${updated.email}.`);
+      setNotice(`RSVP email sent to ${updated.email ?? "guest"}.`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         onAuthExpired();
@@ -202,7 +203,7 @@ export default function DashboardPage({
       return [
         g.first_name,
         g.last_name,
-        g.email,
+        g.email ?? "",
         g.phone ?? "",
         g.ticket_number ?? "",
       ]
@@ -259,6 +260,41 @@ export default function DashboardPage({
       `texcellence-guests-${new Date().toISOString().slice(0, 10)}.csv`,
       guestsToCsv(visible),
     );
+  };
+
+  // Office file: Full Name + QR xlsx, A-Z (server builds it with images).
+  // Binary download, so plain fetch with the admin token (apiFetch is JSON).
+  const handleDownloadXlsx = async (): Promise<void> => {
+    if (downloadingXlsx) return;
+    setDownloadingXlsx(true);
+    setNotice(null);
+    try {
+      const token = getToken();
+      const res = await fetch("/api/guests/print-xlsx", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.status === 401) {
+        onAuthExpired();
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`Download failed with status ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "texcellence-guest-qr-list.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setNotice("QR list downloaded. Send it to the office for printing.");
+    } catch (err) {
+      setNotice(getErrorMessage(err));
+    } finally {
+      setDownloadingXlsx(false);
+    }
   };
 
   const goSection = (s: Section): void => {
@@ -580,6 +616,16 @@ export default function DashboardPage({
                 >
                   {sendingBatch ? "Emailing 5..." : "Send next 5 tickets"}
                 </button>
+                <button
+                  onClick={() => { void handleDownloadXlsx(); }}
+                  disabled={downloadingXlsx || loading}
+                  className={btnSecondary}
+                >
+                  {downloadingXlsx ? "Building..." : "Download QR list"}
+                </button>
+                <a href="/print" target="_blank" rel="noreferrer" className={btnSecondary}>
+                  Print sheet
+                </a>
               </div>
 
               {loading && (

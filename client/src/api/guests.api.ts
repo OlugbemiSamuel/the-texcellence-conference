@@ -7,7 +7,7 @@ import { apiFetch } from "./client.js";
 export const createGuest = async (payload: {
   first_name: string;
   last_name: string;
-  email: string;
+  email?: string;
   phone?: string;
 }): Promise<Guest> => {
   return apiFetch<Guest>("/api/guests", { method: "POST", body: payload });
@@ -51,7 +51,7 @@ export const sendTicketEmail = async (id: number): Promise<Guest> => {
 
 export interface TicketBatchResult {
   sent: Guest[];
-  failed: { id: number; email: string; message: string }[];
+  failed: { id: number; email: string | null; message: string }[];
 }
 
 export const sendTicketBatch = async (limit = 5): Promise<TicketBatchResult> => {

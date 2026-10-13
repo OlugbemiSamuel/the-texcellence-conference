@@ -2,13 +2,14 @@ import {
   generateTicketCredentials,
   createGuest,
   findGuestByEmail,
+  findGuestByNameKey,
   updateGuestById as persistGuestUpdate,
 } from "../repositories/guest.repository.js";
 import {
   normalizeAttendance,
-  normalizeEmail,
   normalizeFirstName,
   normalizeLastName,
+  normalizeOptionalEmail,
   normalizeOptionalText,
   normalizePhone,
 } from "./guest.service.js";
@@ -87,7 +88,9 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
     throw new ValidationError("CSV must contain a header row and at least one guest row");
   }
   const headers = rows[0].map((h) => h.trim().toLowerCase());
-  for (const required of ["first_name", "last_name", "email"] as const) {
+  // Only names are mandatory: email is optional (printed-list guests are
+  // admitted by name). A missing email column means every row is nameless.
+  for (const required of ["first_name", "last_name"] as const) {
     if (!headers.includes(required)) {
       throw new ValidationError(`CSV header is missing required column: ${required}`);
     }
@@ -107,36 +110,44 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
   }
 
   const idx = (name: string): number => headers.indexOf(name);
+  const hasEmailCol = idx("email") >= 0;
   const result: CsvImportResult = { processed: data.length, created: 0, updated: 0, skipped: 0, errors: [] };
-  // Duplicate emails inside one file: last row wins, earlier ones are
-  // reported as skipped so nothing is silently discarded.
+  // Duplicate identity inside one file: last row wins, earlier ones are
+  // reported as skipped so nothing is silently discarded. Emailed rows
+  // match by email; email-less rows match by normalized first+last name.
   const seen = new Map<string, number>();
+  const identityOf = (cells: string[]): string | null => {
+    const emailRaw = hasEmailCol ? cells[idx("email")] ?? "" : "";
+    if (emailRaw.trim() !== "") return `e:${emailRaw.trim().toLowerCase()}`;
+    const first = (cells[idx("first_name")] ?? "").trim().toLowerCase();
+    const last = (cells[idx("last_name")] ?? "").trim().toLowerCase();
+    if (first === "" || last === "") return null;
+    return `n:${first}|${last}`;
+  };
   data.forEach((cells, i) => {
-    const emailRaw = cells[idx("email")] ?? "";
-    const key = emailRaw.trim().toLowerCase();
-    if (key !== "") {
-      if (seen.has(key)) {
-        const firstRow = seen.get(key) as number;
-        result.errors.push({ row: firstRow, email: emailRaw.trim(), message: `Duplicate email in file; kept row ${i + 2}` });
-        result.skipped += 1;
-      }
-      seen.set(key, i + 2);
+    const key = identityOf(cells);
+    if (key === null) return;
+    if (seen.has(key)) {
+      const firstRow = seen.get(key) as number;
+      result.errors.push({ row: firstRow, email: (hasEmailCol ? cells[idx("email")] ?? "" : "").trim(), message: `Duplicate guest in file; kept row ${i + 2}` });
+      result.skipped += 1;
     }
+    seen.set(key, i + 2);
   });
 
   data.forEach((cells, i) => {
     const rowNumber = i + 2;
-    const emailRaw = cells[idx("email")] ?? "";
-    const key = emailRaw.trim().toLowerCase();
+    const key = identityOf(cells);
     // Superseded by a later duplicate row - already counted above.
-    if (key !== "" && seen.get(key) !== rowNumber) return;
+    if (key !== null && seen.get(key) !== rowNumber) return;
+    const emailRaw = hasEmailCol ? cells[idx("email")] ?? "" : "";
     const fail = (message: string): void => {
       result.errors.push({ row: rowNumber, email: emailRaw.trim(), message });
       result.skipped += 1;
     };
     let first_name: string;
     let last_name: string;
-    let email: string;
+    let email: string | null;
     let phone: string | null;
     let attendance_status: "yes" | "no" | "pending";
     let company: string | null;
@@ -146,7 +157,7 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
     try {
       first_name = normalizeFirstName(cells[idx("first_name")] ?? "");
       last_name = normalizeLastName(cells[idx("last_name")] ?? "");
-      email = normalizeEmail(emailRaw);
+      email = normalizeOptionalEmail(emailRaw);
       // Phone or Mobile header both land in the guest's single phone field:
       // Phone wins when both are filled, Mobile fills the gaps.
       // (Invite sheets split them across two columns; the table keeps one.)
@@ -172,10 +183,27 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
       return;
     }
 
-    const existing = findGuestByEmail(email);
+    // Identity: email when present, otherwise the name cascade
+    // (first+last, then company, then phone). Email-less matches update
+    // the found row; unmatched rows always create (never guess-merge).
+    // A missing email never wipes a stored one: the patch omits it.
+    const patch = {
+      first_name,
+      last_name,
+      phone,
+      attendance_status,
+      company,
+      job_title,
+      industry,
+      external_pass_id,
+      ...(email !== null ? { email } : {}),
+    };
+    const existing = email
+      ? findGuestByEmail(email)
+      : findGuestByNameKey(first_name, last_name, company, phone);
     try {
       if (existing) {
-        persistGuestUpdate(existing.id, { first_name, last_name, email, phone, attendance_status, company, job_title, industry, external_pass_id });
+        persistGuestUpdate(existing.id, patch);
         // Imported rows always leave with a ticket (idempotent when present).
         generateTicketCredentials(existing.id);
         result.updated += 1;
@@ -186,10 +214,10 @@ export const importGuestsFromCsv = (rawCsv: unknown): CsvImportResult => {
       }
     } catch (err) {
       // Race on UNIQUE (two admins importing at once): re-read and update.
-      if (err instanceof Error && err.message.includes("UNIQUE")) {
+      if (err instanceof Error && err.message.includes("UNIQUE") && email) {
         const raced = findGuestByEmail(email);
         if (raced) {
-          persistGuestUpdate(raced.id, { first_name, last_name, email, phone, attendance_status, company, job_title, industry, external_pass_id });
+          persistGuestUpdate(raced.id, patch);
           result.updated += 1;
           return;
         }

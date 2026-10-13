@@ -31,8 +31,7 @@ export default function GuestAddModal({ onClose, onCreated, onAuthExpired }: Gue
     const problems: Record<string, string> = {};
     if (firstName.trim() === "") problems.firstName = "First name is required.";
     if (lastName.trim() === "") problems.lastName = "Last name is required.";
-    if (email.trim() === "") problems.email = "Email is required.";
-    else if (!EMAIL_PATTERN.test(email.trim())) problems.email = "Enter a valid email address.";
+    if (email.trim() !== "" && !EMAIL_PATTERN.test(email.trim())) problems.email = "Enter a valid email address.";
     setFieldErrors(problems);
     if (Object.keys(problems).length > 0) return;
     setLoading(true);
@@ -78,7 +77,9 @@ export default function GuestAddModal({ onClose, onCreated, onAuthExpired }: Gue
             </div>
           </div>
           <div>
-            <label htmlFor="add-email" className="block text-sm font-medium text-slate-700">Email</label>
+            <label htmlFor="add-email" className="block text-sm font-medium text-slate-700">
+              Email <span className="font-normal text-slate-500">(optional — guests without email are admitted by name)</span>
+            </label>
             <input id="add-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             {fieldErrors.email && <p className={fieldErrorCls}>{fieldErrors.email}</p>}
           </div>

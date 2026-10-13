@@ -10,7 +10,8 @@ export interface Guest {
   id: number;
   first_name: string;
   last_name: string;
-  email: string;
+  // NULL for printed-list guests admitted by name (no email to match on).
+  email: string | null;
   phone: string | null;
   attendance_status: AttendanceStatus;
   ticket_number: string | null;
@@ -59,7 +60,7 @@ export interface UpdateGuestBody {
 export interface UpdateGuestInput {
   first_name?: string;
   last_name?: string;
-  email?: string;
+  email?: string | null;
   phone?: string | null;
   attendance_status?: AttendanceStatus;
   job_title?: string | null;
@@ -83,7 +84,7 @@ export interface PublicRegistrationBody {
 export interface CreateGuestInput {
   first_name: string;
   last_name: string;
-  email: string;
+  email: string | null;
   phone?: string | null;
   attendance_status?: AttendanceStatus;
   ticket_number?: string | null;

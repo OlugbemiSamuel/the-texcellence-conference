@@ -56,7 +56,7 @@ export default function GuestTable({ guests, startIndex, accreditingId, openingT
               <td className="px-4 py-3 font-semibold text-slate-900">
                 {g.first_name} {g.last_name}
               </td>
-              <td className="px-4 py-3 text-slate-700">{g.email}</td>
+              <td className="px-4 py-3 text-slate-700">{g.email ?? "—"}</td>
               <td className="px-4 py-3 text-slate-700">{g.phone ?? "-"}</td>
               <td className="px-4 py-3">
                 <Badge tone={attendanceTone[g.attendance_status]}>{g.attendance_status}</Badge>

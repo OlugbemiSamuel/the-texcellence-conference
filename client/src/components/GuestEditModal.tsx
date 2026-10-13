@@ -18,7 +18,7 @@ interface GuestEditModalProps {
 export default function GuestEditModal({ guest, onClose, onSaved, onAuthExpired }: GuestEditModalProps): JSX.Element {
   const [firstName, setFirstName] = useState(guest.first_name);
   const [lastName, setLastName] = useState(guest.last_name);
-  const [email, setEmail] = useState(guest.email);
+  const [email, setEmail] = useState(guest.email ?? "");
   const [phone, setPhone] = useState(guest.phone ?? "");
   const [attendance, setAttendance] = useState<AttendanceStatus>(guest.attendance_status);
   const [loading, setLoading] = useState(false);
@@ -31,10 +31,11 @@ export default function GuestEditModal({ guest, onClose, onSaved, onAuthExpired 
     setError(null);
     try {
       // Empty phone box means "no phone" (null), matching backend rules.
+      // Empty email box clears the address (null) - printed-list guests.
       const patch: UpdateGuestPayload = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        email: email.trim(),
+        email: email.trim() === "" ? null : email.trim(),
         phone: phone.trim() === "" ? null : phone.trim(),
         attendance_status: attendance,
       };

@@ -36,6 +36,52 @@ export const getDb = (): DatabaseSync => {
 export const initDb = (): DatabaseSync => {
   const database = getDb();
   database.exec(GUEST_TABLE_SQL);
+  // One-time rebuild: older databases declared email NOT NULL, which bars
+  // printed-list guests admitted by name. New schema keeps email UNIQUE
+  // but nullable (SQLite lets many NULLs coexist). The rebuild copies
+  // every column the old table actually has; missing ones take defaults.
+  // Runs once: afterwards email is already nullable and this is skipped.
+  const emailCol = (
+    database.prepare(`PRAGMA table_info(guests)`).all() as {
+      name: string;
+      notnull: number;
+    }[]
+  ).find((col) => col.name === "email");
+  if (emailCol && emailCol.notnull === 1) {
+    database.exec("ALTER TABLE guests RENAME TO guests_old");
+    database.exec(GUEST_TABLE_SQL);
+    const oldNames = (
+      database.prepare(`PRAGMA table_info(guests_old)`).all() as {
+        name: string;
+      }[]
+    ).map((col) => col.name);
+    const wanted = [
+      "id",
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "attendance_status",
+      "ticket_number",
+      "qr_token",
+      "is_sent",
+      "ticket_sent_count",
+      "accredited_at",
+      "job_title",
+      "company",
+      "industry",
+      "external_pass_id",
+      "created_at",
+      "updated_at",
+    ];
+    const shared = wanted.filter((name) => oldNames.includes(name));
+    const list = shared.join(", ");
+    database.exec(`INSERT INTO guests (${list}) SELECT ${list} FROM guests_old`);
+    database.exec("DROP TABLE guests_old");
+    database.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_guests_external_pass_id ON guests(external_pass_id)"
+    );
+  }
   // Chunk 7 migration: older dev databases lack accredited_at.
   // PRAGMA table_info lists existing columns; ALTER only when missing.
   // No data is touched - existing rows simply get NULL (not accredited).

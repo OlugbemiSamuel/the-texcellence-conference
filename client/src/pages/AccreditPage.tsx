@@ -246,7 +246,7 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
           }`}
         >
           <p className="text-[15px] font-bold text-slate-900">{g.first_name} {g.last_name}</p>
-          <p className="mt-0.5 break-words text-sm text-slate-500">{g.email}{g.phone ? `  |  ${g.phone}` : ""}</p>
+          <p className="mt-0.5 break-words text-sm text-slate-500">{g.email ?? "No email"}{g.phone ? `  |  ${g.phone}` : ""}</p>
           {(g.job_title || g.company) && (
             <p className="mt-0.5 break-words text-sm text-slate-600">
               {[g.job_title, g.company].filter(Boolean).join(" · ")}
@@ -272,7 +272,7 @@ export default function AccreditPage({ onAuthExpired }: AccreditPageProps): JSX.
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-slate-900">{g.first_name} {g.last_name}</p>
-          <p className="mt-0.5 break-words text-sm text-slate-500">{g.email}{g.phone ? `  |  ${g.phone}` : ""}</p>
+          <p className="mt-0.5 break-words text-sm text-slate-500">{g.email ?? "No email"}{g.phone ? `  |  ${g.phone}` : ""}</p>
           {(g.job_title || g.company) && (
             <p className="mt-0.5 break-words text-sm text-slate-600">
               {[g.job_title, g.company].filter(Boolean).join(" · ")}

@@ -53,7 +53,7 @@ export default function TicketModal({ guest, onClose, onAuthExpired, onEmailed }
           <h2 id="ticket-heading" className="text-xl font-extrabold text-slate-900">
             {guest.first_name} {guest.last_name}
           </h2>
-          <p className="text-sm text-slate-600">{guest.email}</p>
+          <p className="text-sm text-slate-600">{guest.email ?? "No email on file"}</p>
           <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-slate-500">Ticket</p>
           <p className="text-2xl font-extrabold tracking-wide text-brand-navy">{guest.ticket_number}</p>
           {guest.qr_token && (

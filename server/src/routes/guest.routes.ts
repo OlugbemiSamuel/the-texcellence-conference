@@ -7,6 +7,7 @@ import {
   importGuestsHandler,
   listGuestsHandler,
   listRecentAccreditationsHandler,
+  printXlsxHandler,
   registerGuestHandler,
   searchGuestsHandler,
   sendRsvpHandler,
@@ -34,6 +35,9 @@ guestRouter.get("/qr/:token", requireAuth, getGuestByQrTokenHandler);
 // Express matches top-down and "recent-accreditations" would otherwise
 // be mistaken for a guest id.
 guestRouter.get("/recent-accreditations", requireAuth, listRecentAccreditationsHandler);
+// Print file MUST sit above /:id for the same reason: "print-xlsx"
+// would otherwise be mistaken for a guest id.
+guestRouter.get("/print-xlsx", requireAuth, printXlsxHandler);
 guestRouter.get("/:id", getGuestByIdHandler);
 guestRouter.patch("/:id", updateGuestByIdHandler);
 // Accreditation + tickets + RSVP + CSV import are staff-only.

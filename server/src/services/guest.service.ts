@@ -84,6 +84,15 @@ export const normalizeEmail = (raw: unknown): string => {
   return email;
 };
 
+// Email-optional flows (CSV invite lists, admin-added printed guests):
+// missing/empty becomes NULL (admitted by name), anything else must be
+// a valid address. NULLs never collide under the UNIQUE constraint.
+export const normalizeOptionalEmail = (raw: unknown): string | null => {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+  return normalizeEmail(raw);
+};
+
 export const normalizePhone = (raw: unknown): string | null => {
   if (raw === undefined || raw === null) return null;
   if (typeof raw !== "string") {
@@ -126,7 +135,8 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
   const input: CreateGuestInput = {
     first_name: normalizeFirstName(readField(record, "first_name")),
     last_name: normalizeLastName(readField(record, "last_name")),
-    email: normalizeEmail(readField(record, "email")),
+    // Admin-added guests may lack email (printed-list admissions by name).
+    email: normalizeOptionalEmail(readField(record, "email")),
     phone: normalizePhone(readField(record, "phone")),
   };
 
@@ -134,7 +144,7 @@ export const registerGuest = (body: RegisterGuestBody): Guest => {
   // The UNIQUE constraint in SQLite stays the final guard (race safety):
   // if two requests slip past this check at the same instant,
   // the database still rejects the second one.
-  if (findGuestByEmail(input.email)) {
+  if (input.email && findGuestByEmail(input.email)) {
     throw new ConflictError();
   }
 
@@ -182,6 +192,29 @@ export const getGuestByQrToken = (rawToken: unknown): Guest => {
   return guest;
 };
 
+// Public ticket verification (printed QRs, no login): resolves a token
+// to the bare card fields. Deliberately narrow: full name + company
+// only. Email, phone, tickets and accreditation state never leave here.
+export interface PublicTicket {
+  first_name: string;
+  last_name: string;
+  company: string | null;
+}
+
+export const getPublicTicket = (rawToken: unknown): PublicTicket => {
+  if (typeof rawToken !== "string" || rawToken.trim() === "") {
+    throw new ValidationError("QR token is required");
+  }
+  const token = rawToken.trim().toLowerCase();
+  if (!QR_TOKEN_PATTERN.test(token)) {
+    throw new ValidationError("QR token is invalid");
+  }
+  const guest = findGuestByQrToken(token);
+  if (!guest) {
+    throw new NotFoundError("Guest not found for this QR code.");
+  }
+  return { first_name: guest.first_name, last_name: guest.last_name, company: guest.company };
+};
 // Accreditation-desk search: short/blank input returns [] (a calm empty
 // result, not an error). Email is lowercased before matching, consistent
 // with how registration normalizes stored emails.
@@ -350,7 +383,7 @@ export const sendGuestTicketEmail = async (
 
 export interface TicketBatchResult {
   sent: Guest[];
-  failed: { id: number; email: string; message: string }[];
+  failed: { id: number; email: string | null; message: string }[];
 }
 
 // Batch ticket email: the next `limit` never-emailed guests, oldest first
@@ -367,7 +400,7 @@ export const sendTicketBatch = async (
       : 5;
   const batch = listUnsentTicketBatch(limit);
   const sent: Guest[] = [];
-  const failed: { id: number; email: string; message: string }[] = [];
+  const failed: { id: number; email: string | null; message: string }[] = [];
   for (const guest of batch) {
     try {
       sent.push(await sendGuestTicketEmail(guest.id, transporter));
@@ -487,10 +520,12 @@ export const updateGuestById = (rawId: unknown, body: UpdateGuestBody): Guest =>
     patch.last_name = normalizeLastName(record["last_name"]);
   }
   if (record["email"] !== undefined) {
-    const email = normalizeEmail(record["email"]);
-    const owner = findGuestByEmail(email);
-    if (owner && owner.id !== id) {
-      throw new ConflictError();
+    const email = normalizeOptionalEmail(record["email"]);
+    if (email) {
+      const owner = findGuestByEmail(email);
+      if (owner && owner.id !== id) {
+        throw new ConflictError();
+      }
     }
     patch.email = email;
   }

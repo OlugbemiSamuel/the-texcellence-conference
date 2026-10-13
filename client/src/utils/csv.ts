@@ -8,7 +8,7 @@ const COLUMNS: { key: string; value: (g: Guest) => string }[] = [
   { key: "id", value: (g) => String(g.id) },
   { key: "first_name", value: (g) => g.first_name },
   { key: "last_name", value: (g) => g.last_name },
-  { key: "email", value: (g) => g.email },
+  { key: "email", value: (g) => g.email ?? "" },
   { key: "phone", value: (g) => g.phone ?? "" },
   { key: "attendance_status", value: (g) => g.attendance_status },
   { key: "company", value: (g) => g.company ?? "" },

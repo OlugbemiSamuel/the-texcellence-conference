@@ -52,6 +52,7 @@ const run = (): void => {
   check("created_at preserved", ada?.created_at === before?.created_at);
 
   // 4-8. row-level rejections, each reported with its row number.
+  // (Row "A,B,,,yes" is admitted by name now - email is optional.)
   const r3 = importGuestsFromCsv(
     "first_name,last_name,email,phone,attendance_status\n" +
       "A,B,not-an-email,,yes\n" +
@@ -60,7 +61,7 @@ const run = (): void => {
       "A,B,,,yes\n" +
       "A,B,maybe@example.com,,maybe\n"
   );
-  check("4-8 all bad rows skipped", r3.created === 0 && r3.updated === 0 && r3.skipped === 5 && r3.errors.length === 5);
+  check("bad rows skipped, nameless admitted", r3.created === 1 && r3.updated === 0 && r3.skipped === 4 && r3.errors.length === 4);
   check("row numbers reported", r3.errors.every((e) => e.row >= 2));
 
   // Pending accepted in import (invite lists arrive with no response yet).
@@ -87,6 +88,24 @@ const run = (): void => {
     check("empty body rejected", false);
   } catch {
     check("empty body rejected", true);
+  }
+
+  // Email-less rows: admitted by name with ticket, re-import updates via
+  // the name cascade instead of duplicating, and a missing email never
+  // wipes a stored one.
+  const n1 = importGuestsFromCsv("first_name,last_name,company\nZara,Ali,Acme\n");
+  check("nameless admitted", n1.created === 1 && n1.skipped === 0);
+  const n2 = importGuestsFromCsv("first_name,last_name,company\nZara,Ali,Acme\n");
+  check("nameless re-import updates", n2.created === 0 && n2.updated === 1);
+  const mailed = findGuestByEmail("ada@example.com");
+  if (mailed) {
+    // Note: last name is "X" here (last row won above) - matching follows
+    // current stored names, not the original import.
+    importGuestsFromCsv("first_name,last_name,email,company\nAda,X,,Acme2\n");
+    check(
+      "missing email never wipes stored email",
+      findGuestByEmail("ada@example.com")?.company === "Acme2"
+    );
   }
 
   closeDb();

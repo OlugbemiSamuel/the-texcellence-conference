@@ -9,5 +9,8 @@
     "dev:client": "npm --prefix client run dev",
     "start:server": "npm --prefix server start",
     "build:client": "npm --prefix client run build"
+  },
+  "devDependencies": {
+    "@types/sqlite3": "^3.1.11"
   }
 }

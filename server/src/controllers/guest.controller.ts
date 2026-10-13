@@ -10,6 +10,7 @@ import {
   getGuestById,
   getGuestByQrToken,
   getGuests,
+  getPublicTicket,
   getRecentAccreditations,
   ingestExternalGuest,
   registerGuest,
@@ -21,6 +22,7 @@ import {
   updateGuestById,
 } from "../services/guest.service.js";
 import { importGuestsFromCsv } from "../services/csv-import.service.js";
+import { buildGuestQrWorkbook } from "../services/print.service.js";
 
 export const registerGuestHandler = (
   req: Request,
@@ -78,6 +80,20 @@ export const listRecentAccreditationsHandler = (
 ): void => {
   try {
     res.json(getRecentAccreditations());
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Public (no auth): printed-QR verification. Query ?token=... returns
+// name + company only, safe for any camera.
+export const publicTicketHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  try {
+    res.json(getPublicTicket(req.query.token));
   } catch (err) {
     next(err);
   }
@@ -165,6 +181,29 @@ export const sendTicketBatchHandler = async (
   try {
     const limit = (req.body as { limit?: unknown } | undefined)?.limit;
     res.json(await sendTicketBatch(limit));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Office print file (admin only): xlsx of Full Name + QR image, A-Z.
+// Streams the file; the office prints it as-is for the door.
+export const printXlsxHandler = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const file = await buildGuestQrWorkbook();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=texcellence-guest-qr-list.xlsx"
+    );
+    res.send(file);
   } catch (err) {
     next(err);
   }

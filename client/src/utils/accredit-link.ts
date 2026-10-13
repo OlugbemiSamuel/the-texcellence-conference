@@ -1,7 +1,8 @@
-// Accreditation deep-link helpers. Ticket QR codes encode a URL like
-// <origin>/accredit?token=<qr-token> so a normal phone camera opens the
-// accreditation desk instead of searching the raw token text.
-// The token itself stays opaque: it is only ever an identifier.
+// Ticket QR codes encode a public verification URL like
+// <origin>/ticket?token=<qr-token> so a normal phone camera opens the
+// guest's ticket card (no login). The token itself stays opaque: it is
+// only ever an identifier. Staff scanning the same QR resolve it on the
+// desk via extractQrToken, which accepts any URL carrying token=.
 
 // import type { Guest } from "../types/guest.types.js";
 
@@ -13,7 +14,7 @@ const QR_TOKEN_PATTERN = /^[0-9a-f]{64}$/i;
 // production with no hard-coded domain.
 export const buildAccreditUrl = (qrToken: string): string => {
   const base = window.location.origin;
-  return `${base}/accredit?token=${encodeURIComponent(qrToken)}`;
+  return `${base}/ticket?token=${encodeURIComponent(qrToken)}`;
 };
 
 // Accepts either the new deep-link URL, a legacy "#/accredit?token=" URL

@@ -62,8 +62,8 @@ export default function GuestImportModal({ onClose, onImported, onAuthExpired }:
       <section aria-labelledby="import-heading" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl sm:p-8">
         <h2 id="import-heading" className="text-lg font-bold text-slate-900">Import guests</h2>
         <p className="mt-1 text-sm text-slate-600">
-          CSV with header: <span className="font-mono text-xs">first_name, last_name, email, phone, attendance_status, company, job_title, industry, external_pass_id</span>.
-          Phone optional. Blank attendance means pending (invited, no reply yet).
+          CSV with header: <span className="font-mono text-xs">first_name, last_name, email, phone, mobile, attendance_status, company, job_title, industry, external_pass_id</span>.
+          Only names are required — email optional (guests without email are matched by name). Phone or Mobile both land in phone. Blank attendance means pending.
           Existing emails are updated; tickets and accreditation are preserved.
         </p>
 

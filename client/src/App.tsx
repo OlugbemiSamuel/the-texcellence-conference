@@ -9,6 +9,8 @@ import AccreditationLoginPage from "./pages/AccreditationLoginPage.js";
 import HomePage from "./pages/HomePage.js";
 import LoginPage from "./pages/LoginPage.js";
 import RegisterPage from "./pages/RegisterPage.js";
+import TicketPage from "./pages/TicketPage.js";
+import PrintSheetPage from "./pages/PrintSheetPage.js";
 import { takePendingAccreditToken } from "./utils/accredit-link.js";
 
 // Plain-path routes (the server rewrites non-/api paths to index.html):
@@ -19,6 +21,9 @@ import { takePendingAccreditToken } from "./utils/accredit-link.js";
 // "/accredit-login"   -> accreditation login -> /accredit
 // "/accredit"         -> accreditation desk (protected)
 // "/accredit?token=x" -> same desk, guest pre-loaded from the QR link
+// "/ticket"           -> public ticket card (no login): printed-QR landing,
+//                        shows name + company only
+// "/print"            -> admin print sheet (Name + QR rows, Print button)
 
 // Where a fresh accreditation login should land: back on the deep-linked
 // guest when one exists, otherwise the plain desk.
@@ -115,6 +120,17 @@ function Shell(): JSX.Element {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/ticket" element={<TicketPage />} />
+      <Route
+        path="/print"
+        element={
+          admin ? (
+            <PrintSheetPage onAuthExpired={handleAdminLogout} />
+          ) : (
+            <Navigate to="/admin" replace />
+          )
+        }
+      />
       <Route
         path="/admin"
         element={admin ? <Navigate to="/dashboard" replace /> : <AdminLogin onLoggedIn={setAdmin} />}

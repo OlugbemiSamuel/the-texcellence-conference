@@ -5,6 +5,7 @@ import express, {
   type Response,
 } from "express";
 import { HttpError } from "./errors/http.error.js";
+import { publicTicketHandler } from "./controllers/guest.controller.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { externalRouter } from "./routes/external.routes.js";
 import { guestRouter } from "./routes/guest.routes.js";
@@ -15,12 +16,20 @@ const app = express();
 // Allow the React dev server to call this API during development.
 // Learn: CORS = browser rule that says "which websites may call me?"
 app.use(cors());
-app.use(express.json());
+// Admin CSV imports arrive as JSON { csv: "..." }: a 1354-row list is
+// ~120KB, past the 100KB default, so the cap is raised. Import and
+// external-ingest routes still validate every row; size isn't trust.
+app.use(express.json({ limit: "5mb" }));
 
 // Health check - proves frontend/backend communication works.
 app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", service: "texcellence-server" });
 });
+
+// Public ticket verification for printed QRs (no login): resolves a token
+// to name + company only. Guests scan with any camera; staff scanning the
+// same QR still lands via extractQrToken (any URL with token= works).
+app.get("/api/ticket", publicTicketHandler);
 
 // Guest management (Chunks 3-4). Router handles the paths,
 // mounted here so the full paths are /api/guests and /api/guests/:id.
@@ -55,6 +64,15 @@ app.use(
     const status = (err as unknown as { status?: unknown }).status;
     if (err instanceof SyntaxError && status === 400) {
       res.status(400).json({ error: "Invalid JSON", message: "Request body is not valid JSON." });
+      return;
+    }
+    // Oversize bodies (entity.too.large, status 413): tell the admin to
+    // split the file instead of a mystery 500.
+    if (status === 413) {
+      res.status(413).json({
+        error: "File too large",
+        message: "This file is too large to import at once. Split it into smaller files and import each.",
+      });
       return;
     }
     console.error(err);
